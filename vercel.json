@@ -5,7 +5,8 @@
   "installCommand": "npm install --production",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/transcribe", "destination": "/api/index" }
+    { "source": "/transcribe", "destination": "/api/index" },
+    { "source": "/panel.html", "destination": "/panel.html" }
   ],
   "env": {
     "VERCEL": "1"
