@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: youtube-shorts-auto-publisher
+    env: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: PORT
+        value: "8788"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REFRESH_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_DRIVE_FOLDER_ID
+        sync: false
