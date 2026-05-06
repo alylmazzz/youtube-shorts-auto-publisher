@@ -4,10 +4,8 @@
   "outputDirectory": "public",
   "installCommand": "npm install --production",
   "rewrites": [
-    { "source": "/", "destination": "/api/index" },
     { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/transcribe", "destination": "/api/index" },
-    { "source": "/health", "destination": "/api/index" }
+    { "source": "/transcribe", "destination": "/api/index" }
   ],
   "env": {
     "VERCEL": "1"
