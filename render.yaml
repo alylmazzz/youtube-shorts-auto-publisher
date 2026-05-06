@@ -6,11 +6,11 @@ services:
     plan: free
     branch: main
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node server.js
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
-        value: 22
+        value: "22"
       - key: PORT
         value: "8788"
       - key: GOOGLE_CLIENT_ID
