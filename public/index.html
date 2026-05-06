@@ -1,7 +1,37 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head><meta charset="utf-8"><title>YouTube Shorts Auto Publisher</title>
-<meta http-equiv="refresh" content="0;url=/api/health">
-</head>
-<body><p>Yönlendiriliyor... <a href="/api/health">API Health</a></p></body>
-</html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;display:flex;justify-content:center;align-items:center;min-height:100vh}.container{max-width:720px;padding:40px 24px}h1{font-size:2.2rem;background:linear-gradient(135deg,#ff4444,#ff6b6b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}.status{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px 0}.card{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #2a2a2a;margin-bottom:16px}.card h2{color:#ff4444;font-size:1.1rem;margin-bottom:8px}.card p{color:#aaa;font-size:.9rem;line-height:1.6}.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:600}.badge-green{background:#1a3a1a;color:#4ade80}.badge-red{background:#3a1a1a;color:#f87171}.endpoint{background:#111;padding:8px 12px;border-radius:6px;font-family:monospace;font-size:.8rem;color:#4ade80;margin:4px 0}pre{background:#111;padding:12px;border-radius:8px;color:#4ade80;font-size:.85rem;overflow-x:auto;margin-top:12px}.footer{text-align:center;margin-top:24px;font-size:.8rem;color:#555}.footer a{color:#ff4444;text-decoration:none}
+</style></head><body>
+<div class="container">
+<h1>🎬 YouTube Shorts<br>Auto Publisher</h1>
+<p style="color:#888;font-size:.95rem">Vercel Serverless API</p>
+<div class="status">
+<div class="card" style="text-align:center"><p style="font-size:.75rem;color:#666">OpenAI</p><p><span class="badge badge-green" id="openai-status">✓</span></p></div>
+<div class="card" style="text-align:center"><p style="font-size:.75rem;color:#666">Google OAuth</p><p><span class="badge badge-green" id="oauth-status">✓</span></p></div>
+</div>
+<div class="card"><h2>🔌 API Endpoints</h2>
+<div class="endpoint">GET /api/health — Health check</div>
+<div class="endpoint">POST /api/content/generate — AI content generation</div>
+<div class="endpoint">POST /api/token — Refresh access token</div>
+<div class="endpoint">GET /api/status — Config status</div>
+<div class="endpoint">GET /api/plugins — Plugin list</div>
+<div class="endpoint">GET /api/analytics/summary — Analytics</div>
+<div class="endpoint">GET /api/gamification/stats — XP & missions</div>
+</div>
+<div class="card"><h2>💻 Lokal Kullanım</h2><p>Full özellikler için (video yükleme, transkripsiyon):</p>
+<pre>npm install && npm start<br>→ http://localhost:8788</pre></div>
+<div class="footer">
+<p><a href="https://github.com/alylmazzz/youtube-shorts-auto-publisher">GitHub</a> • <a href="/api/health">Health Check</a></p>
+<p>v2.1.0</p></div>
+</div>
+<script>
+fetch('/api/health').then(r=>r.json()).then(d=>{
+  document.getElementById('openai-status').textContent = d.hasOpenAI ? '✓ Active' : '✗ Not Set';
+  document.getElementById('openai-status').className = 'badge ' + (d.hasOpenAI ? 'badge-green' : 'badge-red');
+  document.getElementById('oauth-status').textContent = d.hasGoogleAuth ? '✓ Active' : '✗ Not Set';
+  document.getElementById('oauth-status').className = 'badge ' + (d.hasGoogleAuth ? 'badge-green' : 'badge-red');
+}).catch(()=>{});
+</script>
+</body></html>
