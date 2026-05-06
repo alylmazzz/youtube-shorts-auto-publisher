@@ -1,0 +1,20 @@
+{
+  "name": "youtube-shorts-auto-publisher",
+  "version": "2.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node local_oauth_refresh_server.js",
+    "vercel-build": "npm install --production",
+    "dev": "node --watch local_oauth_refresh_server.js",
+    "check": "node --check local_oauth_refresh_server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.82.0"
+  },
+  "description": "YouTube Shorts Auto Publisher — AI-powered content pipeline, queue management, analytics, OAuth token refresh, and video processing"
+}

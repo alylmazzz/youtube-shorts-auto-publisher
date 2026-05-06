@@ -1,0 +1,3092 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Shorts Auto Publisher</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --surface3: #2e2e2e;
+    --border: #333;
+    --accent: #ff0000;
+    --accent2: #ff4444;
+    --accent-glow: rgba(255,0,0,0.15);
+    --green: #00c853;
+    --green-dim: rgba(0,200,83,0.1);
+    --yellow: #ffd600;
+    --yellow-dim: rgba(255,214,0,0.1);
+    --red-dim: rgba(255,68,68,0.1);
+    --text: #e8e8e8;
+    --text-dim: #888;
+    --text-dimmer: #555;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #1a0000 0%, #0f0f0f 50%, #001a0a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .logo h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .logo span {
+    font-size: 12px;
+    color: var(--text-dim);
+    display: block;
+    margin-top: 1px;
+  }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dimmer);
+    transition: all 0.3s;
+  }
+
+  .status-dot.connected { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .status-dot.uploading { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+  /* ── MAIN ── */
+  .main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+  }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .card-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-body { padding: 20px; }
+
+  /* ── AUTH SECTION ── */
+  .auth-step {
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+    background: var(--surface2);
+    transition: all 0.3s;
+  }
+
+  .auth-step.done {
+    border-color: var(--green);
+    background: var(--green-dim);
+  }
+
+  .auth-step.error {
+    border-color: var(--accent2);
+    background: var(--red-dim);
+  }
+
+  .auth-step-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .auth-step-title {
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .badge-pending { background: var(--surface3); color: var(--text-dim); }
+  .badge-done { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+  .badge-error { background: var(--red-dim); color: var(--accent2); border: 1px solid var(--accent2); }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .input-group label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .input-group input, .input-group select {
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 13px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .input-group input:focus, .input-group select:focus {
+    border-color: var(--accent);
+  }
+
+  .input-group input::placeholder { color: var(--text-dimmer); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent2);
+    box-shadow: 0 4px 16px var(--accent-glow);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: var(--surface3);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .btn-success {
+    background: var(--green);
+    color: #000;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-success:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  /* ── SCHEDULE SETTINGS ── */
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .time-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    text-align: center;
+  }
+
+  .time-item.active {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  .time-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .time-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .time-next {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* ── VIDEO QUEUE ── */
+  .video-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  .video-list::-webkit-scrollbar { width: 4px; }
+  .video-list::-webkit-scrollbar-track { background: transparent; }
+  .video-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .video-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+  }
+
+  .video-item.current {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  .video-item.done {
+    border-color: var(--green);
+    background: var(--green-dim);
+    opacity: 0.7;
+  }
+
+  .video-num {
+    width: 32px;
+    height: 32px;
+    background: var(--surface3);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .video-item.current .video-num {
+    background: var(--accent);
+    color: white;
+  }
+
+  .video-item.done .video-num {
+    background: var(--green);
+    color: #000;
+  }
+
+  .video-info { flex: 1; min-width: 0; }
+
+  .video-name {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .video-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .video-status {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .status-next { background: var(--accent-glow); color: var(--accent); border: 1px solid var(--accent); }
+  .status-done { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+  .status-wait { background: var(--surface3); color: var(--text-dimmer); }
+
+  /* ── UPLOAD PANEL ── */
+  .upload-panel {
+    grid-column: 2;
+  }
+
+  @media (max-width: 900px) {
+    .upload-panel { grid-column: 1; }
+  }
+
+  /* ── PROGRESS ── */
+  .progress-container {
+    margin: 16px 0;
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+
+  .progress-bar-bg {
+    height: 8px;
+    background: var(--surface3);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+    position: relative;
+  }
+
+  .progress-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 40px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-40px); }
+    100% { transform: translateX(40px); }
+  }
+
+  /* ── STEPS ── */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 16px 0;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    transition: all 0.3s;
+  }
+
+  .step.active {
+    border-color: var(--yellow);
+    background: var(--yellow-dim);
+  }
+
+  .step.done {
+    border-color: var(--green);
+    background: var(--green-dim);
+  }
+
+  .step.error {
+    border-color: var(--accent2);
+    background: var(--red-dim);
+  }
+
+  .step.skip {
+    border-color: var(--border);
+    background: var(--surface);
+    opacity: 0.82;
+  }
+
+  .transcription-options.disabled {
+    opacity: 0.48;
+    pointer-events: none;
+    filter: grayscale(0.15);
+  }
+
+  .step-icon {
+    font-size: 16px;
+    width: 24px;
+    text-align: center;
+  }
+
+  .step-text { flex: 1; }
+  .step-time { font-size: 11px; color: var(--text-dim); }
+
+  /* ── LOG ── */
+  .log-container {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    height: 220px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .log-container::-webkit-scrollbar { width: 4px; }
+  .log-container::-webkit-scrollbar-track { background: transparent; }
+  .log-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .log-line { margin-bottom: 2px; }
+  .log-time { color: var(--text-dimmer); }
+  .log-info { color: #64b5f6; }
+  .log-success { color: var(--green); }
+  .log-warn { color: var(--yellow); }
+  .log-error { color: var(--accent2); }
+
+  /* ── RESULT CARD ── */
+  .result-card {
+    background: var(--green-dim);
+    border: 1px solid var(--green);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    text-align: center;
+    display: none;
+  }
+
+  .result-card.visible { display: block; animation: fadeIn 0.4s ease; }
+  .result-card.error-card {
+    background: var(--red-dim);
+    border-color: var(--accent2);
+  }
+
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  .result-icon { font-size: 40px; margin-bottom: 10px; }
+  .result-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .result-url { font-size: 13px; color: var(--text-dim); word-break: break-all; }
+  .result-url a { color: var(--green); text-decoration: none; }
+  .result-url a:hover { text-decoration: underline; }
+
+  /* ── STATS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .stat-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* ── SHORTS BADGE ── */
+  .shorts-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #ff0000, #ff6b6b);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── TOGGLE ── */
+  .toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toggle-label {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .toggle {
+    width: 40px;
+    height: 22px;
+    background: var(--surface3);
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+    border: none;
+    outline: none;
+  }
+
+  .toggle.on { background: var(--accent); }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: left 0.3s;
+  }
+
+  .toggle.on::after { left: 21px; }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  /* ── TOOLTIP ── */
+  .info-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* ── TIMER ── */
+  .next-run-timer {
+    text-align: center;
+    padding: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+  }
+
+  .timer-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .timer-value { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+  .timer-desc { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+
+
+  /* ── NEXT VIDEO CONTROL ── */
+  .next-video-panel {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+
+  .next-video-title {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .next-video-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .manual-index-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .manual-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .manual-actions .wide { grid-column: 1 / -1; }
+
+  .scope-warning {
+    background: var(--yellow-dim);
+    border: 1px solid var(--yellow);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    color: var(--yellow);
+    font-size: 12px;
+    line-height: 1.45;
+    margin-top: 12px;
+  }
+
+
+  /* ── SEO + TRANSCRIPTION ── */
+  .role-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .role-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .role-item b { color: var(--text); }
+  .role-item span { color: var(--text-dim); }
+  textarea.seo-textarea {
+    width: 100%;
+    min-height: 90px;
+    resize: vertical;
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    outline: none;
+    font-family: inherit;
+  }
+  textarea.seo-textarea:focus { border-color: var(--accent); }
+  .seo-preview {
+    background: #090909;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #d9eefc;
+    white-space: pre-wrap;
+    max-height: 260px;
+    overflow-y: auto;
+    margin-top: 10px;
+  }
+  .hashtag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0;
+  }
+  .hashtag-chip {
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    background: linear-gradient(135deg, var(--accent), #b91c1c);
+    border: 1px solid rgba(255,255,255,0.16);
+  }
+  .seo-note {
+    background: rgba(100,181,246,0.08);
+    border: 1px solid rgba(100,181,246,0.35);
+    color: #90caf9;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    margin-top: 12px;
+  }
+  .mini-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 900px) { .mini-grid { grid-template-columns: 1fr; } }
+
+
+  /* ── POST PUBLISH ENGAGEMENT ── */
+  .engagement-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-top: 12px;
+  }
+  .engagement-box-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .engagement-warning {
+    background: var(--yellow-dim);
+    border: 1px solid var(--yellow);
+    color: var(--yellow);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    margin-top: 10px;
+  }
+  .comment-preview {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text);
+    white-space: pre-wrap;
+    min-height: 70px;
+    margin-top: 8px;
+  }
+
+
+
+  /* ── LOCAL REFRESH TOKEN MANAGER ── */
+  .oauth-manager-box {
+    background: linear-gradient(135deg, rgba(0,200,83,0.08), rgba(255,0,0,0.05));
+    border: 1px solid rgba(0,200,83,0.35);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .oauth-manager-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .scope-code {
+    background: #050505;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    color: #8fd3ff;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.45;
+    word-break: break-all;
+    user-select: all;
+    margin: 8px 0;
+  }
+
+  .oauth-note {
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.45;
+    margin: 8px 0 12px;
+  }
+
+  .oauth-status-line {
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+
+  .oauth-status-line.good { color: var(--green); border-color: var(--green); background: var(--green-dim); }
+  .oauth-status-line.bad { color: var(--accent2); border-color: var(--accent2); background: var(--red-dim); }
+
+
+
+  /* ── ADVANCED AUTOMATION PANELS ── */
+  .advanced-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin:12px 0; }
+  .advanced-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; }
+  .advanced-card strong { display:block; font-size:20px; margin-bottom:4px; }
+  .advanced-card span { color:var(--text-dim); font-size:11px; }
+  .plugin-grid { display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px; }
+  .plugin-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; }
+  .plugin-card.disabled { opacity:.55; }
+  .plugin-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .plugin-meta { color:var(--text-dim); font-size:11px; margin-top:5px; }
+  .queue-items { display:flex; flex-direction:column; gap:8px; max-height:260px; overflow:auto; margin-top:10px; }
+  .queue-item { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .queue-title { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:360px; }
+  .queue-meta { color:var(--text-dim); font-size:11px; margin-top:2px; }
+  .status-badge { padding:2px 8px; border-radius:99px; font-size:11px; border:1px solid var(--border); color:var(--text-dim); }
+  .status-badge.pending { color:var(--yellow); border-color:var(--yellow); background:var(--yellow-dim); }
+  .status-badge.completed { color:var(--green); border-color:var(--green); background:var(--green-dim); }
+  .status-badge.failed { color:var(--accent2); border-color:var(--accent2); background:var(--red-dim); }
+  .mission-list { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+  .mission-item { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; font-size:12px; }
+  .mission-progress { height:6px; background:var(--surface3); border-radius:6px; overflow:hidden; margin-top:8px; }
+  .mission-progress > div { height:100%; background:linear-gradient(90deg,var(--accent),var(--green)); }
+  .advanced-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .advanced-actions .btn { justify-content:center; }
+
+  /* scrollbar global */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">▶</div>
+    <div>
+      <h1>Shorts Auto Publisher</h1>
+      <span>YouTube Shorts Otomatik Yayın Sistemi</span>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-dot" id="globalStatusDot"></div>
+    <span id="globalStatusText">Bağlantı yok</span>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SOL PANEL -->
+  <div style="display:flex;flex-direction:column;gap:24px;">
+
+    <!-- AUTH CARD -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🔑 API Bağlantıları</div>
+        <div class="shorts-badge">▶ Shorts</div>
+      </div>
+      <div class="card-body">
+
+        <!-- Google Drive Auth -->
+        <div class="auth-step" id="driveAuthStep">
+          <div class="auth-step-header">
+            <div class="auth-step-title">
+              <span>📁</span> Google Drive API
+            </div>
+            <span class="badge badge-pending" id="driveAuthBadge">Bekliyor</span>
+          </div>
+          <div class="input-group">
+            <label>Klasör ID</label>
+            <input type="text" id="driveFolderId" placeholder="1Kp8qcyFTa_S8dBvDdcYRn21c_D1TsT1a" value="1Kp8qcyFTa_S8dBvDdcYRn21c_D1TsT1a">
+          </div>
+          <div class="input-group">
+            <label>Google API Key (Public okuma için)</label>
+            <input type="password" id="googleApiKey" placeholder="AIza...">
+          </div>
+          <div class="input-group">
+            <label>Google OAuth Access Token</label>
+            <input type="password" id="googleAccessToken" placeholder="ya29...">
+          </div>
+          <button class="btn btn-secondary" onclick="testDriveConnection()" id="driveTestBtn">
+            🔍 Drive Bağlantısını Test Et
+          </button>
+        </div>
+
+        <!-- YouTube Auth -->
+        <div class="auth-step" id="ytAuthStep">
+          <div class="auth-step-header">
+            <div class="auth-step-title">
+              <span>📺</span> YouTube Data API v3
+            </div>
+            <span class="badge badge-pending" id="ytAuthBadge">Bekliyor</span>
+          </div>
+          <div class="input-group">
+            <label>YouTube OAuth Access Token</label>
+            <input type="password" id="youtubeAccessToken" placeholder="ya29...">
+          </div>
+          <div class="input-group">
+            <label>Başlangıç Video İndeksi</label>
+            <input type="number" id="startIndex" value="1" min="1">
+          </div>
+          <button class="btn btn-secondary" onclick="testYouTubeConnection()" id="ytTestBtn">
+            🔍 YouTube Bağlantısını Test Et
+          </button>
+        </div>
+
+
+        <!-- Local Refresh Token Manager -->
+        <div class="auth-step" id="localOAuthStep">
+          <div class="auth-step-header">
+            <div class="auth-step-title"><span>♻️</span> Kalıcı Token Yöneticisi</div>
+            <span class="badge badge-pending" id="localOAuthBadge">Lokal</span>
+          </div>
+
+          <div class="oauth-manager-box">
+            <div class="oauth-manager-title">🔐 Refresh token ile otomatik yenileme</div>
+            <div class="oauth-note">
+              Bu uygulama yalnızca senin bilgisayarında çalışacak şekilde tasarlandı. Client ID, Client Secret ve Refresh Token tarayıcıda değil, lokal Node server klasöründeki <b>.youtube_oauth_local.json</b> dosyasında saklanır. HTML her gerektiğinde lokal serverdan yeni access token ister.
+            </div>
+            <div class="toggle-container">
+              <span class="toggle-label">Lokal refresh token sistemi aktif</span>
+              <button class="toggle on" id="autoTokenToggle" onclick="toggleBtn(this)"></button>
+            </div>
+            <div class="input-group" style="margin-top:12px;">
+              <label>Lokal token server URL</label>
+              <input type="text" id="tokenBackendUrl" value="http://localhost:8788" placeholder="http://localhost:8788">
+            </div>
+            <div class="input-group">
+              <label>OAuth Client ID</label>
+              <input type="password" id="oauthClientId" placeholder="Google OAuth Client ID">
+            </div>
+            <div class="input-group">
+              <label>OAuth Client Secret</label>
+              <input type="password" id="oauthClientSecret" placeholder="Google OAuth Client Secret">
+            </div>
+            <div class="input-group">
+              <label>Refresh Token</label>
+              <input type="password" id="googleRefreshToken" placeholder="OAuth Playground veya lokal callback ile alınan refresh_token">
+            </div>
+            <div class="scope-code" id="persistentScopeLine">https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <button class="btn btn-secondary" onclick="copyPersistentScopeLine()" style="justify-content:center;">📋 Scope kopyala</button>
+              <button class="btn btn-secondary" onclick="openOAuthPlayground()" style="justify-content:center;">🌐 Playground aç</button>
+            </div>
+            <button class="btn btn-success" onclick="saveLocalOAuthConfig()" style="margin-top:8px;">💾 Bir kere kaydet ve otomatik yenilemeyi aç</button>
+            <button class="btn btn-secondary" onclick="testLocalOAuthManager()" style="width:100%;justify-content:center;margin-top:8px;">🔄 Refresh token ile yeni access token test et</button>
+            <div class="oauth-status-line" id="oauthStatusLine">Henüz lokal token server test edilmedi.</div>
+          </div>
+
+          <div class="scope-warning">
+            Tokenlar saat başı değiştiği için bu mod access token alanlarını otomatik doldurur. Refresh tokenı yalnızca senin bilgisayarındaki lokal server saklar. Kendi bilgisayarın dışında kullanma.
+          </div>
+        </div>
+
+        <!-- Shorts Settings -->
+        <div class="auth-step" id="shortsSettingsStep">
+          <div class="auth-step-header">
+            <div class="auth-step-title"><span>⚙️</span> Shorts Ayarları</div>
+          </div>
+
+          <div class="toggle-container">
+            <span class="toggle-label">Önce unlisted → sonra public yap</span>
+            <button class="toggle on" id="unlistedToggle" onclick="toggleBtn(this)"></button>
+          </div>
+          <div class="toggle-container">
+            <span class="toggle-label">Aspect ratio kontrolü (0.50–0.70)</span>
+            <button class="toggle on" id="ratioToggle" onclick="toggleBtn(this)"></button>
+          </div>
+          <div class="toggle-container">
+            <span class="toggle-label">60 saniye limit kontrolü</span>
+            <button class="toggle on" id="durationToggle" onclick="toggleBtn(this)"></button>
+          </div>
+          <div class="toggle-container">
+            <span class="toggle-label">Liste bitince başa dön</span>
+            <button class="toggle on" id="loopToggle" onclick="toggleBtn(this)"></button>
+          </div>
+          <div class="scope-warning">
+            Public yapma adımı 403 scope hatası verirse YouTube tokenına <b>youtube</b> veya <b>youtube.force-ssl</b> scope'u ekle ya da "Önce unlisted → sonra public" ayarını kapatıp direkt public yükle.
+          </div>
+
+          <div style="margin-top:12px;" class="input-group">
+            <label>Başlık formatı</label>
+            <input type="text" id="titleFormat" value="#Shorts {index}">
+          </div>
+          <div class="input-group">
+            <label>Unlisted → Public bekleme süresi (saniye)</label>
+            <input type="number" id="unlistedDelay" value="300" min="30" max="1800">
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- SEO + TRANSCRIPTION CARD -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🧠 SEO + Ses Metni + Influencer Hashtag</div>
+        <div class="info-chip">Ön yayın optimizasyonu</div>
+      </div>
+      <div class="card-body">
+        <div class="role-grid">
+          <div class="role-item"><b>SEO Growth Engineer</b><br><span>Hook, başlık, açıklama, etiket ve ilk 3 görünür hashtag sıralamasını optimize eder.</span></div>
+          <div class="role-item"><b>Speech-to-Text Pipeline Architect</b><br><span>Videodan ses/metin çıkarımı için backend transcribe endpoint’i veya güvenli fallback akışı kullanır.</span></div>
+          <div class="role-item"><b>Broadcast Transcription Editor (ASR)</b><br><span>Konuşmayı eksiksiz aktarır; noktalama ve cümle bütünlüğünü korur.</span></div>
+          <div class="role-item"><b>ASR Quality Gatekeeper</b><br><span>gpt-4o-transcribe / chunking ile uzun seste kapsama; terim sözlüğü ile isim-jargon doğruluğu.</span></div>
+          <div class="role-item"><b>Turkish / English Orthography Specialist</b><br><span>Türkçe ğ ü ş ı ö ç ve bağlama uygun İngilizce ödünç kelime yazımı.</span></div>
+          <div class="role-item"><b>YouTube Metadata Strategist</b><br><span>Yüklemeden önce snippet.title, snippet.description ve snippet.tags alanlarını hazırlar.</span></div>
+          <div class="role-item"><b>Reliability + Compliance Engineer</b><br><span>Tokenları frontend dışına taşıma, CORS, scope, retry ve sürekli çalışma gereksinimlerini izler.</span></div>
+        </div>
+
+        <div class="toggle-container">
+          <span class="toggle-label">Yüklemeden önce SEO üret</span>
+          <button class="toggle on" id="seoToggle" onclick="toggleBtn(this)"></button>
+        </div>
+
+        <div class="toggle-container">
+          <span class="toggle-label">Gelişmiş AI ContentPipeline kullan</span>
+          <button class="toggle on" id="aiContentToggle" onclick="toggleBtn(this)"></button>
+        </div>
+        <div class="mini-grid">
+          <div class="input-group">
+            <label>İçerik dili</label>
+            <select id="contentLanguage">
+              <option value="tr">Türkçe</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Başlık stili</label>
+            <select id="contentStyle">
+              <option value="clickbait">Clickbait / viral</option>
+              <option value="informative">Bilgilendirici</option>
+              <option value="storytelling">Hikaye</option>
+            </select>
+          </div>
+        </div>
+        <div class="mini-grid">
+          <div class="input-group">
+            <label>Model modu</label>
+            <select id="contentModelTier">
+              <option value="fast">Hızlı / ekonomik</option>
+              <option value="smart">Akıllı / derin</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Kanal bağlamı</label>
+            <input type="text" id="channelContext" placeholder="Örn: motivasyon, disiplin, yapay zeka influencer kanalı">
+          </div>
+        </div>
+        <div class="toggle-container">
+          <span class="toggle-label">Videodaki sesten metin çıkar <span style="color:var(--text-dim);font-weight:400;font-size:12px;display:block;margin-top:4px;">Açık: transkripsiyon çalışır. Kapalı: bu adım ve API çağrısı yapılmaz.</span></span>
+          <button type="button" class="toggle on" id="transcriptionToggle" aria-pressed="true" onclick="toggleBtn(this); syncTranscriptionPanel();" title="Kapalıyken ses metni çıkarılmaz"></button>
+        </div>
+
+        <div id="transcriptionOptionsPanel" class="transcription-options">
+        <div class="input-group" style="margin-top:12px;">
+          <label>Transcription endpoint URL</label>
+          <input type="text" id="transcriptionEndpoint" placeholder="/api/transcribe veya http://localhost:8787/transcribe">
+        </div>
+        <div class="mini-grid">
+          <div class="input-group">
+            <label>Konuşma dili</label>
+            <select id="transcriptionLanguage">
+              <option value="tr">Türkçe</option>
+              <option value="en">English</option>
+              <option value="auto">Auto detect</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Transkripsiyon kalitesi</label>
+            <select id="transcriptionQuality" title="Sunucu varsayılanı: gpt-4o-transcribe (maksimum doğruluk)">
+              <option value="maximum" selected>Maksimum doğruluk (gpt-4o-transcribe)</option>
+              <option value="balanced">Dengeli (mini 2025-12-15)</option>
+              <option value="economy">Ekonomik (gpt-4o-mini-transcribe)</option>
+            </select>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Terim sözlüğü (isimler, jargon — transkript doğruluğu)</label>
+          <input type="text" id="transcriptionGlossary" placeholder="Örn: ChatGPT, API, isim marka yazılışı... (boşsa niş kelimeler kullanılır)">
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="testTranscriptionEndpoint()" style="width:100%;justify-content:center;margin-top:8px;">🎙 Transcription Endpoint Test</button>
+        </div>
+
+        <div class="mini-grid">
+          <div class="input-group">
+            <label>CTA</label>
+            <input type="text" id="seoCta" value="Yoruma tek kelime yaz 👇">
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>Influencer hashtag havuzu</label>
+          <textarea class="seo-textarea" id="influencerHashtagPool">#shorts #viral #keşfet #fyp #foryou #trend #motivasyon #başarı #mindset #disiplin #gelişim #para #psikoloji #gains #facts #influencer #aiinfluencer #fitnessmotivation #selfimprovement #entrepreneur</textarea>
+        </div>
+        <div class="input-group">
+          <label>Niş anahtar kelimeler</label>
+          <textarea class="seo-textarea" id="nicheKeywords">gains, facts, motivasyon, disiplin, başarı, mindset, para, psikoloji, alışkanlık, odak, yapay zeka, girişimcilik</textarea>
+        </div>
+        <div class="input-group">
+          <label>Hook cümlesi şablonları</label>
+          <textarea class="seo-textarea" id="hookTemplates">Bunu duymadan karar verme.
+Sence asıl sorun ne?
+Bu gerçeği kabul edebilecek misin?
+Bugün kendine dürüst ol.
+Seni durduran şey gerçekten ne?
+Kimse izlemiyorken de çalışıyor musun?</textarea>
+        </div>
+
+        <div class="hashtag-row" id="topHashtagChips">
+          <span class="hashtag-chip">#shorts</span><span class="hashtag-chip">#viral</span><span class="hashtag-chip">#keşfet</span>
+        </div>
+        <button class="btn btn-secondary" onclick="previewSeoForNextVideo()" style="width:100%;justify-content:center;">🔍 Sıradaki Video İçin SEO Önizle</button>
+
+        <div class="engagement-box">
+          <div class="engagement-box-title">💬 Yayın Sonrası İlk Yorum + Beğeni</div>
+          <div class="toggle-container">
+            <span class="toggle-label">Hook cümlesini ilk yorum olarak at</span>
+            <button class="toggle on" id="firstCommentToggle" onclick="toggleBtn(this)"></button>
+          </div>
+          <div class="toggle-container">
+            <span class="toggle-label">Video yayınlandıktan sonra beğen</span>
+            <button class="toggle on" id="autoLikeToggle" onclick="toggleBtn(this)"></button>
+          </div>
+          <div class="input-group" style="margin-top:12px;">
+            <label>İlk yorum şablonu</label>
+            <textarea class="seo-textarea" id="firstCommentTemplate">{hook}
+
+{cta}
+
+{hashtags}</textarea>
+          </div>
+          <button class="btn btn-secondary" onclick="previewFirstComment()" style="width:100%;justify-content:center;">💬 İlk Yorum Önizle</button>
+          <div class="comment-preview" id="firstCommentPreview">İlk yorum önizlemesi burada görünecek.</div>
+          <div class="engagement-warning">
+            İlk yorum ve beğeni için YouTube OAuth tokenında <b>youtube.force-ssl</b> veya <b>youtube</b> scope’u gerekir. Yorumlar kapalıysa veya kanal yorum yetkisi yoksa video yüklemesi başarısız sayılmaz; işlem loga uyarı olarak düşer.
+          </div>
+          <div class="engagement-warning" style="margin-top:10px;">
+            <b>OAuth Playground Step 1 - Select & authorize APIs</b><br>
+            Aşağıdaki tek satırı Step 1'deki scope/custom scope alanına yapıştır. Bu satır Drive okuma + Shorts upload + public yapma + ilk yorum + beğeni işlemleri için hazırlanmıştır.
+          </div>
+          <div class="input-group" style="margin-top:10px;">
+            <label>Step 1 tek satır scope kodu</label>
+            <textarea class="seo-textarea" id="oauthScopeLine" readonly>https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl</textarea>
+          </div>
+          <button class="btn btn-secondary" onclick="copyOAuthScopeLine()" style="width:100%;justify-content:center;">📋 Step 1 Scope Satırını Kopyala</button>
+        </div>
+
+        <div class="seo-preview" id="seoPreview">SEO paketi yükleme sırasında otomatik üretilecek. Önizleme için video listesini alıp butona bas.</div>
+        <div class="seo-note">
+          Saf HTML tek başına güvenilir şekilde video dosyasından konuşma metni çıkaramaz. Bu panel video blob’unu bir <b>/api/transcribe</b> backend endpoint’ine gönderir. Endpoint yoksa dosya adı + niş kelimeler + hook şablonlarıyla güvenli fallback SEO üretir.
+        </div>
+      </div>
+    </div>
+
+    <!-- SCHEDULE CARD -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⏰ Zamanlama</div>
+        <div class="info-chip" id="scheduleStatusChip">⏸ Durduruldu</div>
+      </div>
+      <div class="card-body">
+        <div class="next-run-timer">
+          <div class="timer-label">Sonraki Yayın</div>
+          <div class="timer-value" id="countdownTimer">--:--:--</div>
+          <div class="timer-desc" id="nextRunDesc">Zamanlayıcı başlatılmadı</div>
+        </div>
+        <div class="schedule-grid">
+          <div class="time-item" id="morningSlot">
+            <div class="time-label">☀️ Sabah</div>
+            <div class="time-value" id="morningTime">09:00</div>
+            <div class="time-next" id="morningNext">—</div>
+          </div>
+          <div class="time-item" id="eveningSlot">
+            <div class="time-label">🌙 Akşam</div>
+            <div class="time-value" id="eveningTime">21:00</div>
+            <div class="time-next" id="eveningNext">—</div>
+          </div>
+        </div>
+        <div class="schedule-grid">
+          <div class="input-group">
+            <label>Sabah saati</label>
+            <input type="time" id="morningHour" value="09:00">
+          </div>
+          <div class="input-group">
+            <label>Akşam saati</label>
+            <input type="time" id="eveningHour" value="21:00">
+          </div>
+        </div>
+        <button class="btn btn-primary" id="scheduleToggleBtn" onclick="toggleSchedule()">
+          ▶ Zamanlayıcıyı Başlat
+        </button>
+        <button class="btn btn-secondary" id="keepAwakeBtn" onclick="enableKeepAwake()" style="width:100%;justify-content:center;margin-top:10px;">
+          🟢 Sekmeyi açık/uyanık tut
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SAĞ PANEL -->
+  <div class="upload-panel" style="display:flex;flex-direction:column;gap:24px;">
+
+    <!-- STATS -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📊 İstatistikler</div>
+        <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="refreshVideoList()">🔄 Listele</button>
+      </div>
+      <div class="card-body">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-value" id="statTotal">—</div>
+            <div class="stat-label">Toplam Video</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statDone">—</div>
+            <div class="stat-label">Yayınlanan</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statNext">—</div>
+            <div class="stat-label">Sıradaki indeks</div>
+          </div>
+        </div>
+
+        <div class="next-video-panel">
+          <div class="next-video-title">🎯 Sırada paylaşılacak video</div>
+          <div class="next-video-name" id="currentVideoInfo">Video listesi alınmadı</div>
+          <div class="manual-index-row">
+            <div class="input-group" style="margin:0;">
+              <label>Manuel sıradaki indeks</label>
+              <input type="number" id="manualNextIndex" min="1" value="1">
+            </div>
+            <button class="btn btn-secondary" onclick="setManualNextIndex()" style="align-self:end;">Ayarla</button>
+          </div>
+          <div class="manual-actions">
+            <button class="btn btn-secondary" onclick="stepBackOne()">◀ 1 geri al</button>
+            <button class="btn btn-secondary" onclick="skipOneAhead()">⏭ 1 ileri at</button>
+            <button class="btn btn-primary wide" onclick="skipOneAheadAndRun()">⏭ + ▶ 1 ileri at ve anlık paylaş</button>
+          </div>
+        </div>
+
+        <!-- Video List -->
+        <div class="video-list" id="videoList">
+          <div style="text-align:center;color:var(--text-dim);padding:40px 0;font-size:13px;">
+            Drive bağlantısını test edip "Listele" butonuna basın
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADVANCED AUTOMATION DASHBOARD -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🧩 Gelişmiş Otomasyon Merkezi</div>
+        <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="loadAdvancedDashboard()">🔄 Yenile</button>
+      </div>
+      <div class="card-body">
+        <div class="advanced-grid">
+          <div class="advanced-card"><strong id="dashQueuePending">—</strong><span>Kuyrukta bekleyen</span></div>
+          <div class="advanced-card"><strong id="dashSeoGenerated">—</strong><span>SEO üretimi</span></div>
+          <div class="advanced-card"><strong id="dashLevel">—</strong><span>Gamification level</span></div>
+          <div class="advanced-card"><strong id="dashPlugins">—</strong><span>Aktif plugin</span></div>
+        </div>
+        <div class="advanced-actions">
+          <button class="btn btn-secondary" onclick="previewSeoForNextVideo()">🧠 AI SEO Önizle</button>
+          <button class="btn btn-secondary" onclick="addNextVideoToServerQueue()">➕ Sıradakini Kuyruğa Yaz</button>
+          <button class="btn btn-secondary" onclick="loadPlugins()">🧩 Pluginler</button>
+          <button class="btn btn-secondary" onclick="loadQueue()">📋 Kuyruk</button>
+        </div>
+        <div id="pluginList" class="plugin-grid"></div>
+        <div id="queueItems" class="queue-items"></div>
+        <div id="missionList" class="mission-list"></div>
+      </div>
+    </div>
+
+    <!-- UPLOAD PANEL -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🚀 Manuel Yükle / Şimdi Çalıştır</div>
+        <div class="info-chip">Resumable Upload API</div>
+      </div>
+      <div class="card-body">
+
+        <!-- Steps -->
+        <div class="steps" id="uploadSteps">
+          <div class="step" id="step-drive">
+            <span class="step-icon">📁</span>
+            <span class="step-text">Drive'dan video listesi alınıyor</span>
+            <span class="step-time" id="step-drive-time"></span>
+          </div>
+          <div class="step" id="step-select">
+            <span class="step-icon">🎯</span>
+            <span class="step-text">Sıradaki video seçiliyor</span>
+            <span class="step-time" id="step-select-time"></span>
+          </div>
+          <div class="step" id="step-download">
+            <span class="step-icon">⬇️</span>
+            <span class="step-text">Video indiriliyor</span>
+            <span class="step-time" id="step-download-time"></span>
+          </div>
+          <div class="step" id="step-validate">
+            <span class="step-icon">✅</span>
+            <span class="step-text">Shorts uygunluğu doğrulanıyor</span>
+            <span class="step-time" id="step-validate-time"></span>
+          </div>
+          <div class="step" id="step-transcribe">
+            <span class="step-icon">🎙</span>
+            <span class="step-text">Videodaki sesten metin çıkarılıyor</span>
+            <span class="step-time" id="step-transcribe-time"></span>
+          </div>
+          <div class="step" id="step-seo">
+            <span class="step-icon">🧠</span>
+            <span class="step-text">SEO başlık/açıklama/hashtag hazırlanıyor</span>
+            <span class="step-time" id="step-seo-time"></span>
+          </div>
+          <div class="step" id="step-upload">
+            <span class="step-icon">📤</span>
+            <span class="step-text">YouTube'a yükleniyor (Resumable API)</span>
+            <span class="step-time" id="step-upload-time"></span>
+          </div>
+          <div class="step" id="step-public">
+            <span class="step-icon">🌐</span>
+            <span class="step-text">Gizlilik: Public yapılıyor</span>
+            <span class="step-time" id="step-public-time"></span>
+          </div>
+          <div class="step" id="step-comment">
+            <span class="step-icon">💬</span>
+            <span class="step-text">Hook ilk yorum olarak ekleniyor</span>
+            <span class="step-time" id="step-comment-time"></span>
+          </div>
+          <div class="step" id="step-like">
+            <span class="step-icon">👍</span>
+            <span class="step-text">Video beğeniliyor</span>
+            <span class="step-time" id="step-like-time"></span>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-container" id="progressContainer" style="display:none;">
+          <div class="progress-header">
+            <span id="progressLabel">Yükleniyor...</span>
+            <span id="progressPct">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button class="btn btn-primary" id="runNowBtn" onclick="runNow()" style="flex:1;">
+            ▶ Şimdi Çalıştır
+          </button>
+          <button class="btn btn-secondary" id="stopBtn" onclick="stopRun()" disabled>
+            ⏹ Durdur
+          </button>
+        </div>
+
+        <!-- Result -->
+        <div class="result-card" id="resultCard">
+          <div class="result-icon" id="resultIcon"></div>
+          <div class="result-title" id="resultTitle"></div>
+          <div class="result-url" id="resultUrl"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 Sistem Logu</div>
+        <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="clearLog()">🗑 Temizle</button>
+      </div>
+      <div class="card-body" style="padding:12px;">
+        <div class="log-container" id="logContainer"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+const STATE = {
+  nextVideoIndex: parseInt(localStorage.getItem('nextVideoIndex') || '1'),
+  totalVideos: 0,
+  publishedCount: parseInt(localStorage.getItem('publishedCount') || '0'),
+  videos: [],
+  isRunning: false,
+  isScheduleActive: false,
+  scheduleIntervalId: null,
+  countdownIntervalId: null,
+  abortController: null,
+  lastPublished: localStorage.getItem('lastPublished') || null,
+  lastPublishedUrl: localStorage.getItem('lastPublishedUrl') || null,
+  lastScheduledRunKey: localStorage.getItem('lastScheduledRunKey') || '',
+  pendingPublic: JSON.parse(localStorage.getItem('pendingPublic') || 'null'),
+  wakeLock: null,
+  cachedChannelId: null,
+};
+
+function saveState() {
+  localStorage.setItem('nextVideoIndex', STATE.nextVideoIndex);
+  localStorage.setItem('publishedCount', STATE.publishedCount);
+  if (STATE.lastPublished) localStorage.setItem('lastPublished', STATE.lastPublished);
+  if (STATE.lastPublishedUrl) localStorage.setItem('lastPublishedUrl', STATE.lastPublishedUrl);
+  localStorage.setItem('lastScheduledRunKey', STATE.lastScheduledRunKey || '');
+  localStorage.setItem('pendingPublic', JSON.stringify(STATE.pendingPublic || null));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOG
+// ═══════════════════════════════════════════════════════════════
+function log(msg, type = 'info') {
+  const el = document.getElementById('logContainer');
+  const time = new Date().toLocaleTimeString('tr-TR');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">${msg}</span>`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('logContainer').innerHTML = '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STEP MANAGER
+// ═══════════════════════════════════════════════════════════════
+function setStep(id, status) {
+  const el = document.getElementById('step-' + id);
+  const timeEl = document.getElementById('step-' + id + '-time');
+  if (!el) return;
+  el.className = 'step ' + (status === 'active' ? 'active' : status === 'done' ? 'done' : status === 'error' ? 'error' : status === 'skip' ? 'skip' : '');
+  if (timeEl && (status === 'active' || status === 'done' || status === 'error' || status === 'skip')) {
+    timeEl.textContent = status === 'skip' ? '—' : new Date().toLocaleTimeString('tr-TR');
+  }
+}
+
+function resetSteps() {
+  ['drive','select','download','validate','transcribe','seo','upload','public','comment','like'].forEach(id => setStep(id, ''));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GLOBAL STATUS
+// ═══════════════════════════════════════════════════════════════
+function setGlobalStatus(text, state = 'idle') {
+  document.getElementById('globalStatusText').textContent = text;
+  const dot = document.getElementById('globalStatusDot');
+  dot.className = 'status-dot ' + (state === 'connected' ? 'connected' : state === 'uploading' ? 'uploading' : '');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOGGLE
+// ═══════════════════════════════════════════════════════════════
+function toggleBtn(btn) {
+  btn.classList.toggle('on');
+}
+
+function isToggleOn(id) {
+  const el = document.getElementById(id);
+  return el && el.classList.contains('on');
+}
+
+function syncTranscriptionPanel() {
+  const btn = document.getElementById('transcriptionToggle');
+  const panel = document.getElementById('transcriptionOptionsPanel');
+  const on = btn && btn.classList.contains('on');
+  if (btn) btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  if (panel) panel.classList.toggle('disabled', !on);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH HELPERS
+// ═══════════════════════════════════════════════════════════════
+function getConfig() {
+  return {
+    folderId: document.getElementById('driveFolderId').value.trim(),
+    googleToken: document.getElementById('googleAccessToken').value.trim(),
+    youtubeToken: document.getElementById('youtubeAccessToken').value.trim(),
+    useAutoToken: document.getElementById('autoTokenToggle') ? isToggleOn('autoTokenToggle') : false,
+    tokenBackendUrl: (document.getElementById('tokenBackendUrl')?.value || 'http://localhost:8788').trim().replace(/\/$/, ''),
+    startIndex: parseInt(document.getElementById('startIndex').value) || 1,
+    titleFormat: document.getElementById('titleFormat').value.trim() || '#Shorts {index}',
+    unlistedDelay: parseInt(document.getElementById('unlistedDelay').value) || 300,
+    useUnlisted: isToggleOn('unlistedToggle'),
+    checkRatio: isToggleOn('ratioToggle'),
+    checkDuration: isToggleOn('durationToggle'),
+    loopAfterLast: isToggleOn('loopToggle'),
+    enableSeo: isToggleOn('seoToggle'),
+    enableTranscription: isToggleOn('transcriptionToggle'),
+    transcriptionEndpoint: (document.getElementById('transcriptionEndpoint')?.value || '').trim(),
+    transcriptionLanguage: document.getElementById('transcriptionLanguage')?.value || 'tr',
+    transcriptionQuality: document.getElementById('transcriptionQuality')?.value || 'maximum',
+    transcriptionGlossary: document.getElementById('transcriptionGlossary')?.value || '',
+    influencerHashtagPool: document.getElementById('influencerHashtagPool')?.value || '',
+    nicheKeywords: document.getElementById('nicheKeywords')?.value || '',
+    hookTemplates: document.getElementById('hookTemplates')?.value || '',
+    seoCta: document.getElementById('seoCta')?.value || 'Yoruma tek kelime yaz 👇',
+    enableFirstComment: isToggleOn('firstCommentToggle'),
+    enableAutoLike: isToggleOn('autoLikeToggle'),
+    enableAiContent: document.getElementById('aiContentToggle') ? isToggleOn('aiContentToggle') : true,
+    contentLanguage: document.getElementById('contentLanguage')?.value || document.getElementById('transcriptionLanguage')?.value || 'tr',
+    contentStyle: document.getElementById('contentStyle')?.value || 'clickbait',
+    contentModelTier: document.getElementById('contentModelTier')?.value || 'fast',
+    channelContext: document.getElementById('channelContext')?.value || '',
+    firstCommentTemplate: document.getElementById('firstCommentTemplate')?.value || '{hook}\n\n{cta}\n\n{hashtags}',
+  };
+}
+
+function setAuthBadge(id, state) {
+  const el = document.getElementById(id);
+  const step = el.closest('.auth-step') || document.getElementById(id.replace('Badge','Step'));
+  el.className = 'badge badge-' + (state === 'done' ? 'done' : state === 'error' ? 'error' : 'pending');
+  el.textContent = state === 'done' ? 'Bağlı ✓' : state === 'error' ? 'Hata ✗' : 'Bekliyor';
+  if (step) {
+    step.className = 'auth-step ' + (state === 'done' ? 'done' : state === 'error' ? 'error' : '');
+  }
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// LOCAL REFRESH TOKEN MANAGER
+// ═══════════════════════════════════════════════════════════════
+function persistentScopeLine() {
+  return 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl';
+}
+
+function localTokenBaseUrl() {
+  return (document.getElementById('tokenBackendUrl')?.value || 'http://localhost:8788').trim().replace(/\/$/, '');
+}
+
+function setOAuthStatus(message, type = '') {
+  const line = document.getElementById('oauthStatusLine');
+  if (line) {
+    line.className = 'oauth-status-line ' + (type || '');
+    line.textContent = message;
+  }
+  const badge = document.getElementById('localOAuthBadge');
+  if (badge) {
+    badge.className = 'badge badge-' + (type === 'good' ? 'done' : type === 'bad' ? 'error' : 'pending');
+    badge.textContent = type === 'good' ? 'Aktif ✓' : type === 'bad' ? 'Hata ✗' : 'Lokal';
+  }
+}
+
+function copyPersistentScopeLine() {
+  const line = persistentScopeLine();
+  navigator.clipboard?.writeText(line).then(() => log('OAuth scope satırı kopyalandı.', 'success')).catch(() => log(line, 'info'));
+}
+
+function openOAuthPlayground() {
+  window.open('https://developers.google.com/oauthplayground/', '_blank', 'noopener');
+}
+
+async function saveLocalOAuthConfig() {
+  const base = localTokenBaseUrl();
+  const payload = {
+    clientId: document.getElementById('oauthClientId')?.value.trim() || '',
+    clientSecret: document.getElementById('oauthClientSecret')?.value.trim() || '',
+    refreshToken: document.getElementById('googleRefreshToken')?.value.trim() || '',
+    driveFolderId: document.getElementById('driveFolderId')?.value.trim() || '',
+    transcriptionModel: 'gpt-4o-transcribe',
+    transcriptionDefaultTier: document.getElementById('transcriptionQuality')?.value || 'maximum'
+  };
+  if (!payload.clientId || !payload.clientSecret || !payload.refreshToken) {
+    log('Client ID, Client Secret ve Refresh Token alanları zorunlu.', 'error');
+    setOAuthStatus('Eksik bilgi: Client ID, Client Secret veya Refresh Token boş.', 'bad');
+    return;
+  }
+  try {
+    const res = await fetch(base + '/api/local-oauth/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Kaydetme başarısız');
+    localStorage.setItem('tokenBackendUrl', base);
+    document.getElementById('oauthClientId').value = '';
+    document.getElementById('oauthClientSecret').value = '';
+    document.getElementById('googleRefreshToken').value = '';
+    setOAuthStatus('Kaydedildi. Artık access token otomatik yenilenecek.', 'good');
+    log('Refresh token lokal servera kaydedildi. Access tokenlar artık otomatik yenilenecek.', 'success');
+    await ensureAutoTokens(true);
+  } catch (e) {
+    setOAuthStatus('Lokal servera bağlanılamadı: ' + e.message, 'bad');
+    log('Lokal OAuth kayıt hatası: ' + e.message + ' | Server açık mı? node local_oauth_refresh_server.js', 'error');
+  }
+}
+
+async function testLocalOAuthManager() {
+  try {
+    await ensureAutoTokens(true);
+    const token = document.getElementById('youtubeAccessToken').value;
+    setOAuthStatus('Yeni access token alındı. Kısmi token: ' + token.slice(0, 10) + '…', 'good');
+    log('Refresh token test başarılı. Google/YouTube access token otomatik dolduruldu.', 'success');
+  } catch (e) {
+    setOAuthStatus('Token yenileme başarısız: ' + e.message, 'bad');
+    log('Refresh token test hatası: ' + e.message, 'error');
+  }
+}
+
+async function ensureAutoTokens(force = false) {
+  const autoToggle = document.getElementById('autoTokenToggle');
+  if (!autoToggle || !autoToggle.classList.contains('on')) return;
+  const base = localTokenBaseUrl();
+  localStorage.setItem('tokenBackendUrl', base);
+  try {
+    const res = await fetch(base + '/api/local-oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.access_token) throw new Error(data.error || 'Access token alınamadı');
+    document.getElementById('googleAccessToken').value = data.access_token;
+    document.getElementById('youtubeAccessToken').value = data.access_token;
+    setOAuthStatus(`Access token hazır. ${data.cached ? 'Cache kullanıldı' : 'Yenilendi'} · ${Math.round((data.expires_in || 0) / 60)} dk geçerli`, 'good');
+    if (force) log('Access token refresh token ile yenilendi.', 'success');
+  } catch (e) {
+    const manualGoogle = document.getElementById('googleAccessToken')?.value.trim();
+    const manualYoutube = document.getElementById('youtubeAccessToken')?.value.trim();
+    if (manualGoogle && manualYoutube) {
+      setOAuthStatus('Lokal token server yok; manuel tokenlarla devam ediliyor.', 'bad');
+      log('Otomatik token alınamadı; manuel access tokenlarla devam ediliyor: ' + e.message, 'warn');
+      return;
+    }
+    throw e;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TEST DRIVE
+// ═══════════════════════════════════════════════════════════════
+async function testDriveConnection() {
+  await ensureAutoTokens();
+  const cfg = getConfig();
+  if (!cfg.folderId || !cfg.googleToken) {
+    log('Klasör ID ve Google Access Token gerekli!', 'error');
+    return;
+  }
+  const btn = document.getElementById('driveTestBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Test ediliyor...';
+  log('Drive bağlantısı test ediliyor...', 'info');
+  try {
+    const files = await driveListVideos(cfg);
+    setAuthBadge('driveAuthBadge', 'done');
+    log('Drive bağlantısı başarılı! ' + files.length + ' video bulundu.', 'success');
+    STATE.videos = files;
+    STATE.totalVideos = files.length;
+    renderVideoList();
+    updateStats();
+    setGlobalStatus('Drive bağlı', 'connected');
+  } catch(e) {
+    setAuthBadge('driveAuthBadge', 'error');
+    log('Drive hatası: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '🔍 Drive Bağlantısını Test Et';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TEST YOUTUBE
+// ═══════════════════════════════════════════════════════════════
+async function testYouTubeConnection() {
+  await ensureAutoTokens();
+  const cfg = getConfig();
+  if (!cfg.youtubeToken) {
+    log('YouTube Access Token gerekli!', 'error');
+    return;
+  }
+  const btn = document.getElementById('ytTestBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Test ediliyor...';
+  log('YouTube bağlantısı test ediliyor...', 'info');
+  try {
+    const res = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+      headers: { 'Authorization': 'Bearer ' + cfg.youtubeToken }
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const ch = data.items?.[0]?.snippet?.title || 'Bilinmeyen Kanal';
+    setAuthBadge('ytAuthBadge', 'done');
+    log('YouTube bağlantısı başarılı! Kanal: ' + ch, 'success');
+    setGlobalStatus('YouTube + Drive bağlı', 'connected');
+  } catch(e) {
+    setAuthBadge('ytAuthBadge', 'error');
+    log('YouTube hatası: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '🔍 YouTube Bağlantısını Test Et';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DRIVE API
+// ═══════════════════════════════════════════════════════════════
+async function driveListVideos(cfg) {
+  const q = encodeURIComponent(`'${cfg.folderId}' in parents and trashed = false and mimeType contains 'video/'`);
+  const fields = encodeURIComponent('files(id,name,mimeType,size,videoMediaMetadata)');
+  const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`;
+
+  const res = await fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + cfg.googleToken }
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+
+  const raw = data.files || [];
+  const parsed = raw.map(f => {
+    const match = f.name.match(/^(\d+)\.(mp4|mov|webm|mkv|avi)$/i);
+    const vm = f.videoMediaMetadata || {};
+    return {
+      id: f.id,
+      name: f.name,
+      mimeType: f.mimeType,
+      size: parseInt(f.size || '0'),
+      number: match ? parseInt(match[1]) : null,
+      width: parseInt(vm.width || '0'),
+      height: parseInt(vm.height || '0'),
+      durationMillis: parseFloat(vm.durationMillis || '0'),
+    };
+  }).filter(f => f.number !== null && f.id)
+    .sort((a,b) => a.number - b.number);
+
+  return parsed;
+}
+
+async function driveDownloadVideo(cfg, fileId, signal) {
+  log('Video Drive\'dan indiriliyor... ID: ' + fileId, 'info');
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + cfg.googleToken },
+    signal,
+  });
+  if (!res.ok) throw new Error('Drive download hatası: ' + res.status);
+  const blob = await res.blob();
+  log('İndirme tamamlandı. Boyut: ' + (blob.size / 1024 / 1024).toFixed(2) + ' MB', 'success');
+  return blob;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHORTS VALIDATOR
+// ═══════════════════════════════════════════════════════════════
+function validateShorts(video, cfg) {
+  const errors = [];
+  const warnings = [];
+
+  if (cfg.checkDuration) {
+    if (video.durationMillis <= 0) {
+      warnings.push('Süre metadata\'sı yok (Drive API bazen vermez), devam ediliyor');
+    } else if (video.durationMillis > 60000) {
+      errors.push(`Süre ${(video.durationMillis/1000).toFixed(1)}s > 60s`);
+    }
+  }
+
+  if (cfg.checkRatio) {
+    if (video.width > 0 && video.height > 0) {
+      if (video.width >= video.height) {
+        errors.push(`Yatay video: ${video.width}x${video.height}`);
+      } else {
+        const ratio = video.width / video.height;
+        if (ratio < 0.45 || ratio > 0.75) {
+          errors.push(`Aspect ratio ${ratio.toFixed(2)} Shorts aralığı dışında (0.45-0.75)`);
+        }
+      }
+    } else {
+      warnings.push('Boyut metadata\'sı yok, aspect ratio atlanıyor');
+    }
+  }
+
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// YOUTUBE RESUMABLE UPLOAD API
+// ═══════════════════════════════════════════════════════════════
+async function youtubeResumableUpload(cfg, videoBlob, meta, onProgress, signal) {
+  const seo = meta.seo || generateSeoPackage(meta.targetVideo || { name: 'short.mp4' }, meta.transcript || '', cfg, meta.videoIndex, meta.dateStr);
+  const titleFmt = cfg.titleFormat;
+  const fallbackTitle = titleFmt.replace('{index}', meta.videoIndex);
+  const title = trimText(seo.title || fallbackTitle, 95);
+  const description = seo.description || `#Shorts #Short #YouTubeShorts
+
+${meta.dateStr}
+${title}`;
+  const tags = (seo.tags && seo.tags.length ? seo.tags : ['Shorts', 'YouTubeShorts', 'Short']).slice(0, 20);
+
+  // AŞAMA 1: Yükleme URL'i al (session başlat)
+  log('YouTube Resumable Upload session başlatılıyor...', 'info');
+
+  const initBody = JSON.stringify({
+    snippet: {
+      title,
+      description,
+      categoryId: '22',
+      defaultLanguage: cfg.transcriptionLanguage === 'en' ? 'en' : 'tr',
+      tags,
+    },
+    status: {
+      privacyStatus: cfg.useUnlisted ? 'unlisted' : 'public',
+      selfDeclaredMadeForKids: false,
+      madeForKids: false,
+    },
+  });
+
+  const initRes = await fetch(
+    'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + cfg.youtubeToken,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': videoBlob.type || 'video/mp4',
+        'X-Upload-Content-Length': videoBlob.size,
+      },
+      body: initBody,
+      signal,
+    }
+  );
+
+  if (!initRes.ok) {
+    const errText = await initRes.text();
+    throw new Error(`Session başlatma hatası ${initRes.status}: ${errText}`);
+  }
+
+  const uploadUrl = initRes.headers.get('Location');
+  if (!uploadUrl) throw new Error('Upload URL alınamadı (Location header yok)');
+  log('Upload URL alındı. Yükleme başlıyor...', 'info');
+
+  // AŞAMA 2: Blob'u yükle (chunked)
+  const CHUNK = 5 * 1024 * 1024; // 5MB
+  let offset = 0;
+  let videoId = null;
+
+  while (offset < videoBlob.size) {
+    if (signal?.aborted) throw new Error('Yükleme iptal edildi');
+
+    const end = Math.min(offset + CHUNK, videoBlob.size);
+    const chunk = videoBlob.slice(offset, end);
+    const range = `bytes ${offset}-${end-1}/${videoBlob.size}`;
+
+    const chunkRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Range': range,
+        'Content-Type': videoBlob.type || 'video/mp4',
+      },
+      body: chunk,
+      signal,
+    });
+
+    const pct = Math.round((end / videoBlob.size) * 100);
+    onProgress(pct, `${(end/1024/1024).toFixed(1)}MB / ${(videoBlob.size/1024/1024).toFixed(1)}MB`);
+
+    if (chunkRes.status === 200 || chunkRes.status === 201) {
+      const data = await chunkRes.json();
+      videoId = data.id;
+      break;
+    } else if (chunkRes.status === 308) {
+      // Devam et
+      const rangeHeader = chunkRes.headers.get('Range');
+      if (rangeHeader) {
+        offset = parseInt(rangeHeader.split('-')[1]) + 1;
+      } else {
+        offset = end;
+      }
+    } else {
+      const errText = await chunkRes.text();
+      throw new Error(`Chunk yükleme hatası ${chunkRes.status}: ${errText}`);
+    }
+  }
+
+  if (!videoId) throw new Error('Video ID alınamadı');
+  return { videoId, title, description };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAKE VIDEO PUBLIC (unlisted → public)
+// ═══════════════════════════════════════════════════════════════
+async function makeVideoPublic(cfg, videoId) {
+  log(`Video public yapılıyor... ID: ${videoId}`, 'info');
+  const res = await fetch(
+    `https://www.googleapis.com/youtube/v3/videos?part=status`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + cfg.youtubeToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: videoId,
+        status: { privacyStatus: 'public' },
+      }),
+    }
+  );
+  const text = await res.text();
+  const data = safeJson(text);
+  if (!res.ok || data.error) {
+    let message = data.error?.message || text || `HTTP ${res.status}`;
+    if (res.status === 403 && /scope|insufficient/i.test(message)) {
+      message += ' | Çözüm: OAuth tokenı youtube veya youtube.force-ssl scope ile yeniden üret. Alternatif: Unlisted→Public ayarını kapatıp videoyu ilk yüklemede public gönder.';
+    }
+    throw new Error('Public yapma hatası: ' + message);
+  }
+  log('Video public yapıldı ✓', 'success');
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SLEEP
+// ═══════════════════════════════════════════════════════════════
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ═══════════════════════════════════════════════════════════════
+// SHOW / HIDE PROGRESS
+// ═══════════════════════════════════════════════════════════════
+function setProgress(pct, label) {
+  const container = document.getElementById('progressContainer');
+  const fill = document.getElementById('progressFill');
+  const pctEl = document.getElementById('progressPct');
+  const labelEl = document.getElementById('progressLabel');
+  container.style.display = 'block';
+  fill.style.width = pct + '%';
+  pctEl.textContent = pct + '%';
+  if (label) labelEl.textContent = label;
+}
+
+function hideProgress() {
+  document.getElementById('progressContainer').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHOW RESULT
+// ═══════════════════════════════════════════════════════════════
+function showResult(success, title, urlOrMsg) {
+  const card = document.getElementById('resultCard');
+  card.className = 'result-card visible' + (success ? '' : ' error-card');
+  document.getElementById('resultIcon').textContent = success ? '🎉' : '❌';
+  document.getElementById('resultTitle').textContent = title;
+  if (success && String(urlOrMsg).startsWith('http')) {
+    document.getElementById('resultUrl').innerHTML = `<a href="${urlOrMsg}" target="_blank" rel="noopener">${urlOrMsg}</a><br><br><small>⏳ YouTube'un Shorts olarak işlemesi 30 dk–2 saat alabilir.</small>`;
+  } else {
+    document.getElementById('resultUrl').innerHTML = urlOrMsg;
+  }
+}
+
+function hideResult() {
+  document.getElementById('resultCard').className = 'result-card';
+}
+
+
+function safeJson(text) {
+  try { return JSON.parse(text); } catch { return { raw: text }; }
+}
+
+function resolveTargetVideo(videos, desiredIndex, cfg = getConfig(), allowLog = false) {
+  if (!videos || !videos.length) return { target: null, idx: desiredIndex };
+  let idx = parseInt(desiredIndex || 1);
+  let target = videos.find(v => v.number === idx);
+  if (!target) {
+    target = videos.find(v => v.number > idx);
+    if (target) {
+      if (allowLog) log(`İstenen #${idx} bulunamadı; sıradaki mevcut dosya #${target.number} seçildi.`, 'warn');
+      idx = target.number;
+    }
+  }
+  if (!target && cfg.loopAfterLast) {
+    target = videos[0];
+    idx = target.number;
+    if (allowLog) log('Liste sonuna gelindi; başa dönülüyor: #' + idx, 'warn');
+  }
+  return { target, idx };
+}
+
+function syncManualIndexInputs() {
+  const manual = document.getElementById('manualNextIndex');
+  const backendInput = document.getElementById('tokenBackendUrl');
+  if (backendInput) backendInput.value = localStorage.getItem('tokenBackendUrl') || backendInput.value || 'http://localhost:8788';
+  const scopeBox = document.getElementById('persistentScopeLine');
+  if (scopeBox) scopeBox.textContent = persistentScopeLine();
+  if (document.getElementById('transcriptionEndpoint') && !document.getElementById('transcriptionEndpoint').value) {
+    document.getElementById('transcriptionEndpoint').value = (localStorage.getItem('tokenBackendUrl') || 'http://localhost:8788').replace(/\/$/, '') + '/transcribe';
+  }
+  const start = document.getElementById('startIndex');
+  if (manual && document.activeElement !== manual) manual.value = STATE.nextVideoIndex;
+  if (start && document.activeElement !== start) start.value = STATE.nextVideoIndex;
+}
+
+function setManualNextIndex() {
+  const value = parseInt(document.getElementById('manualNextIndex').value || '1');
+  if (!value || value < 1) return log('Geçerli bir indeks girin.', 'error');
+  STATE.nextVideoIndex = value;
+  saveState();
+  updateStats();
+  renderVideoList();
+  log('Sıradaki video indeksi manuel ayarlandı: #' + value, 'success');
+}
+
+function skipOneAhead() {
+  STATE.nextVideoIndex += 1;
+  saveState();
+  updateStats();
+  renderVideoList();
+  log('Sıra 1 ileri atlandı. Yeni sıradaki indeks: #' + STATE.nextVideoIndex, 'warn');
+}
+
+function stepBackOne() {
+  STATE.nextVideoIndex = Math.max(1, STATE.nextVideoIndex - 1);
+  saveState();
+  updateStats();
+  renderVideoList();
+  log('Sıra 1 geri alındı. Yeni sıradaki indeks: #' + STATE.nextVideoIndex, 'warn');
+}
+
+function skipOneAheadAndRun() {
+  if (STATE.isRunning) return log('Zaten bir yükleme çalışıyor.', 'warn');
+  skipOneAhead();
+  runPipeline();
+}
+
+async function enableKeepAwake() {
+  const btn = document.getElementById('keepAwakeBtn');
+  if (!('wakeLock' in navigator)) {
+    log('Wake Lock bu tarayıcıda desteklenmiyor. Sekmeyi ve bilgisayarı açık tutmalısın.', 'warn');
+    return;
+  }
+  try {
+    STATE.wakeLock = await navigator.wakeLock.request('screen');
+    btn.textContent = '✅ Sekme uyanık tutuluyor';
+    log('Wake Lock aktif: tarayıcı sekmesi açık kaldığı sürece uyku engellenmeye çalışılır.', 'success');
+    STATE.wakeLock.addEventListener('release', () => log('Wake Lock serbest bırakıldı.', 'warn'));
+  } catch (e) {
+    log('Wake Lock alınamadı: ' + e.message, 'error');
+  }
+}
+
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && STATE.wakeLock === null) {
+    // Kullanıcı isterse yeniden butona basabilir. Otomatik istemiyoruz.
+    log('Sekme tekrar görünür oldu. Sürekli çalışma için sekmeyi açık tut.', 'info');
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// SEO + TRANSCRIPTION ENGINE
+// ═══════════════════════════════════════════════════════════════
+function splitClean(value) {
+  return String(value || '')
+    .split(/[\n,]+/)
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+function normalizeWord(s) {
+  return String(s || '')
+    .toLowerCase('tr-TR')
+    .replace(/[#@]/g, '')
+    .replace(/[^a-z0-9ığüşöçİĞÜŞÖÇ\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeHashtag(tag) {
+  const clean = normalizeWord(tag).replace(/\s+/g, '');
+  return clean ? '#' + clean : '';
+}
+
+function trimText(text, max) {
+  text = String(text || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1).replace(/\s+\S*$/, '') + '…';
+}
+
+function extractFirstSentence(text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const match = t.match(/[^.!?。！？]{8,90}[.!?。！？]?/);
+  return match ? match[0].trim() : trimText(t, 90);
+}
+
+function scoreHashtag(tag, context) {
+  const h = normalizeWord(tag);
+  const c = normalizeWord(context);
+  let score = 0;
+  const evergreen = ['shorts','viral','keşfet','kesfet','fyp','foryou','trend'];
+  const influencer = ['motivasyon','başarı','basari','mindset','disiplin','gelişim','gelisim','gains','facts','psikoloji','para','aiinfluencer','influencer'];
+  if (evergreen.includes(h)) score += 35;
+  if (influencer.includes(h)) score += 30;
+  if (c.includes(h)) score += 28;
+  if (h.length >= 4 && h.length <= 18) score += 12;
+  if (h.length > 24) score -= 15;
+  if (/\d{4,}/.test(h)) score -= 10;
+  return score;
+}
+
+function rankTopHashtags(cfg, contextText) {
+  const base = ['#shorts', '#viral', '#keşfet', '#fyp', '#foryou', '#motivasyon', '#mindset', '#disiplin'];
+  const pool = [...base, ...splitClean(cfg.influencerHashtagPool).map(normalizeHashtag)].filter(Boolean);
+  const unique = [...new Set(pool)];
+  return unique
+    .map(tag => ({ tag, score: scoreHashtag(tag, contextText) }))
+    .sort((a,b) => b.score - a.score)
+    .map(x => x.tag)
+    .slice(0, 3);
+}
+
+function chooseHook(transcript, video, cfg) {
+  const first = extractFirstSentence(transcript);
+  if (first && first.length >= 12) return trimText(first, 82);
+  const templates = splitClean(cfg.hookTemplates);
+  const fallback = templates.length ? templates[(video.number || STATE.nextVideoIndex || 1) % templates.length] : 'Bu soruyu dürüstçe cevapla.';
+  return trimText(fallback, 82);
+}
+
+/** Varsayılan açıklama hashtagleri — her video sürecinde açıklamaya eklenir (yedek / yerel SEO). */
+function appendDefaultDescriptionHashtags(description) {
+  const tags = ['#viral', '#model', '#rasta'];
+  const d = String(description || '').trimEnd();
+  const missing = tags.filter((t) => !d.includes(t));
+  if (!missing.length) return d;
+  return d ? `${d}\n\n${missing.join(' ')}` : missing.join(' ');
+}
+
+function generateSeoPackage(video, transcript, cfg, videoIndex, dateStr) {
+  const context = [transcript, video?.name, cfg.nicheKeywords].join(' ');
+  const top3 = rankTopHashtags(cfg, context);
+  const hook = chooseHook(transcript, video || {}, cfg);
+  const titleBase = cfg.titleFormat.replace('{index}', videoIndex).replace('#Shorts', '').trim();
+  const title = trimText(`${hook} #Shorts`, 95);
+  const transcriptBlock = transcript ? `\n\nKonuşma metni:\n${trimText(transcript, 650)}` : '';
+  const keywords = splitClean(cfg.nicheKeywords).slice(0, 15);
+  const widerTags = [...new Set([...top3, ...splitClean(cfg.influencerHashtagPool).map(normalizeHashtag).filter(Boolean)])].slice(0, 12);
+  const description = appendDefaultDescriptionHashtags(`${hook}\n\n${cfg.seoCta}\n\n${top3.join(' ')}${transcriptBlock}\n\nKonu: ${titleBase || 'YouTube Shorts'}\nAnahtar kelimeler: ${keywords.join(', ')}\n\n${widerTags.join(' ')}`);
+  const tags = [...new Set([
+    'Shorts', 'YouTubeShorts', 'Short',
+    ...top3.map(x => x.replace('#','')),
+    ...keywords.map(x => normalizeWord(x)).filter(Boolean)
+  ])].slice(0, 20);
+  return { hook, title, description, topHashtags: top3, tags, transcript: transcript || '' };
+}
+
+async function generateSeoPackageAdvanced(video, transcript, cfg, videoIndex, dateStr) {
+  const localFallback = () => generateSeoPackage(video, transcript, cfg, videoIndex, dateStr);
+  if (!cfg.enableAiContent) return localFallback();
+  try {
+    const res = await fetch('/api/content/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transcript: transcript || video?.name || '',
+        videoName: video?.name || '',
+        language: cfg.contentLanguage === 'auto' ? 'tr' : cfg.contentLanguage,
+        style: cfg.contentStyle,
+        modelTier: cfg.contentModelTier,
+        category: 'general',
+        ctaStyle: cfg.seoCta,
+        channelContext: cfg.channelContext,
+        nicheKeywords: cfg.nicheKeywords
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'AI ContentPipeline hatası');
+    const r = data.result;
+    const hashtags = (r.description?.hashtags || [])
+      .map(h => String(h).startsWith('#') ? h : '#' + String(h).replace(/\s+/g, ''));
+    const topHashtags = hashtags.length ? hashtags.slice(0, 3) : rankTopHashtags(cfg, [transcript, video?.name, cfg.nicheKeywords].join(' '));
+    return {
+      hook: (r.hooks && r.hooks[0]) || r.description?.primary?.split('\n')[0] || r.readyToCopy.title,
+      title: r.readyToCopy.title,
+      description: appendDefaultDescriptionHashtags(r.readyToCopy.description),
+      topHashtags,
+      tags: r.tags?.list || [],
+      transcript: transcript || '',
+      aiResult: r,
+      seoScore: r.seoScore,
+      performance: r.performance,
+      thumbnail: r.thumbnail,
+      category: r.category,
+      chapters: r.chapters || []
+    };
+  } catch (e) {
+    log('AI ContentPipeline fallback: ' + e.message, 'warn');
+    return localFallback();
+  }
+}
+
+function renderSeoPreview(seo) {
+  const chips = document.getElementById('topHashtagChips');
+  if (chips) chips.innerHTML = seo.topHashtags.map(h => `<span class="hashtag-chip">${h}</span>`).join('');
+  const out = document.getElementById('seoPreview');
+  if (out) {
+    out.textContent = `HOOK:\n${seo.hook}\n\nBAŞLIK:\n${seo.title}\n\nİLK 3 HASHTAG:\n${seo.topHashtags.join(' ')}\n\nYOUTUBE TAGS:\n${seo.tags.join(', ')}\n\nAÇIKLAMA:\n${seo.description}`;
+  }
+}
+
+async function previewSeoForNextVideo() {
+  const cfg = getConfig();
+  const { target, idx } = resolveTargetVideo(STATE.videos, STATE.nextVideoIndex, cfg, false);
+  const video = target || { name: 'ornek_video.mp4', number: STATE.nextVideoIndex };
+  const dateStr = new Date().toISOString().split('T')[0];
+  const seo = await generateSeoPackageAdvanced(video, '', cfg, idx || STATE.nextVideoIndex, dateStr);
+  renderSeoPreview(seo);
+  log((target ? 'Sıradaki video' : 'Örnek video') + ' için SEO önizlemesi üretildi: #' + (idx || STATE.nextVideoIndex), 'success');
+  loadAdvancedDashboard();
+}
+
+async function testTranscriptionEndpoint() {
+  const cfg = getConfig();
+  if (!cfg.enableTranscription) {
+    log('Transkripsiyon kapalı; önce "Videodaki sesten metin çıkar" anahtarını aç.', 'warn');
+    return;
+  }
+  if (!cfg.transcriptionEndpoint) {
+    log('Transcription endpoint boş. Örn: /api/transcribe veya http://localhost:8787/transcribe', 'error');
+    return;
+  }
+  try {
+    const res = await fetch(cfg.transcriptionEndpoint, { method: 'OPTIONS' });
+    log('Endpoint erişim testi tamamlandı. HTTP ' + res.status + ' — bazı endpointler OPTIONS desteklemeyebilir.', res.ok ? 'success' : 'warn');
+  } catch (e) {
+    log('Endpoint test hatası: ' + e.message, 'error');
+  }
+}
+
+async function extractTranscriptFromVideo(videoBlob, cfg, meta = {}) {
+  if (!cfg.enableTranscription) {
+    log('Transkripsiyon kapalı; bu çağrı yapılmamalı (iç koruma).', 'warn');
+    return '';
+  }
+  if (!cfg.transcriptionEndpoint) {
+    log('Transcription endpoint girilmedi; fallback SEO kullanılacak.', 'warn');
+    return '';
+  }
+  const fd = new FormData();
+  const fileName = meta.video?.name || `short_${meta.videoIndex || 'video'}.mp4`;
+  fd.append('file', videoBlob, fileName);
+  fd.append('language', cfg.transcriptionLanguage || 'tr');
+  fd.append('transcriptionTier', cfg.transcriptionQuality || 'maximum');
+  const gloss = (cfg.transcriptionGlossary || '').trim() || (cfg.nicheKeywords || '');
+  if (gloss) fd.append('glossary', gloss);
+  if (cfg.channelContext && cfg.channelContext.trim()) fd.append('channelContext', cfg.channelContext.trim());
+  fd.append('contentLanguage', cfg.contentLanguage || 'tr');
+  fd.append('purpose', 'youtube_shorts_seo');
+  const res = await fetch(cfg.transcriptionEndpoint, { method: 'POST', body: fd });
+  const text = await res.text();
+  const data = safeJson(text);
+  if (!res.ok) throw new Error('Transcription endpoint hatası ' + res.status + ': ' + (data.error || data.message || text));
+  const transcript = data.text || data.transcript || data.result?.text || data.raw || '';
+  if (!transcript) {
+    log('Endpoint cevap verdi ama transcript alanı boş geldi; fallback SEO kullanılacak.', 'warn');
+    return '';
+  }
+  if (data.warning) log('Transkripsiyon uyarısı: ' + data.warning, 'warn');
+  if (data.pipeline || data.model) log('STT: ' + (data.pipeline || '-') + (data.model ? ' · ' + data.model : ''), 'info');
+  log('Ses metni çıkarıldı: ' + trimText(transcript, 120), 'success');
+  return transcript;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// POST-PUBLISH ENGAGEMENT: FIRST COMMENT + LIKE
+// ═══════════════════════════════════════════════════════════════
+/** Her videoda, SEO ilk yorumundan hemen sonra gönderilen sabit ek yorumlar (ayrı thread). */
+const DEFAULT_FOLLOW_UP_COMMENTS = [
+  'umarım bu videoyu birçok insan görür',
+  'dilerim bu video başarılı olur',
+  'bu video göz alıcı olmuş',
+  'izlemeyi en çok özlediğiniz influencırlar',
+];
+
+/** Varsayılan ek yorumların sonuna eklenen hashtag üçlüsü (açıklama SEO’su ile aynı set). */
+function withDefaultFollowCommentHashtags(body) {
+  const t = (body || '').trimEnd();
+  const tags = ['#viral', '#model', '#rasta'];
+  let out = t;
+  for (const tag of tags) {
+    if (!out.includes(tag)) out += (out ? ' ' : '') + tag;
+  }
+  return trimText(out, 9500);
+}
+
+function buildFirstComment(seo, cfg) {
+  const template = cfg.firstCommentTemplate || '{hook}\n\n{cta}\n\n{hashtags}';
+  const hashtags = (seo.topHashtags || ['#shorts', '#viral', '#keşfet']).slice(0, 3).join(' ');
+  const comment = template
+    .replaceAll('{hook}', seo.hook || '')
+    .replaceAll('{cta}', cfg.seoCta || 'Yoruma tek kelime yaz 👇')
+    .replaceAll('{hashtags}', hashtags)
+    .replaceAll('{title}', seo.title || '')
+    .replaceAll('{transcript}', trimText(seo.transcript || '', 250));
+  return trimText(comment.replace(/\n{3,}/g, '\n\n').trim(), 9500);
+}
+
+function previewFirstComment() {
+  const cfg = getConfig();
+  const { target, idx } = resolveTargetVideo(STATE.videos, STATE.nextVideoIndex, cfg, false);
+  const seo = target
+    ? generateSeoPackage(target, '', cfg, idx, new Date().toISOString().split('T')[0])
+    : generateSeoPackage({ name: 'ornek_video.mp4', number: STATE.nextVideoIndex }, '', cfg, STATE.nextVideoIndex, new Date().toISOString().split('T')[0]);
+  const text = buildFirstComment(seo, cfg);
+  const el = document.getElementById('firstCommentPreview');
+  if (el) el.textContent = text;
+  log('İlk yorum önizlemesi hazırlandı.', 'success');
+}
+
+async function getMyYouTubeChannelId(cfg) {
+  if (STATE.cachedChannelId) return STATE.cachedChannelId;
+  const res = await fetch('https://www.googleapis.com/youtube/v3/channels?part=id&mine=true', {
+    headers: { 'Authorization': 'Bearer ' + cfg.youtubeToken }
+  });
+  const text = await res.text();
+  const data = safeJson(text);
+  if (!res.ok || data.error) throw new Error('Kanal ID alınamadı: ' + (data.error?.message || text || res.status));
+  const channelId = data.items?.[0]?.id;
+  if (!channelId) throw new Error('Kanal ID bulunamadı. Token doğru YouTube kanalına ait olmayabilir.');
+  STATE.cachedChannelId = channelId;
+  return channelId;
+}
+
+async function postTopLevelYouTubeComment(cfg, videoId, channelId, commentText, logLabel) {
+  const label = logLabel || 'Yorum';
+  log(label + ' ekleniyor: ' + trimText(commentText, 120), 'info');
+  const res = await fetch('https://www.googleapis.com/youtube/v3/commentThreads?part=snippet', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + cfg.youtubeToken,
+      'Content-Type': 'application/json; charset=UTF-8'
+    },
+    body: JSON.stringify({
+      snippet: {
+        channelId,
+        videoId,
+        topLevelComment: {
+          snippet: { textOriginal: commentText }
+        }
+      }
+    })
+  });
+  const text = await res.text();
+  const data = safeJson(text);
+  if (!res.ok || data.error) {
+    let message = data.error?.message || text || `HTTP ${res.status}`;
+    if (res.status === 403 && /scope|permission|forbidden|insufficient/i.test(message)) {
+      message += ' | Çözüm: YouTube OAuth tokenını youtube.force-ssl veya youtube scope ile yeniden üret. Ayrıca videoda yorumlar kapalı olmamalı.';
+    }
+    throw new Error(label + ' eklenemedi: ' + message);
+  }
+  const commentId = data.id || data.snippet?.topLevelComment?.id || 'comment-created';
+  log(label + ' eklendi ✓ ID: ' + commentId, 'success');
+  return data;
+}
+
+async function insertHookFirstComment(cfg, videoId, seo) {
+  const commentText = buildFirstComment(seo, cfg);
+  if (!commentText) throw new Error('İlk yorum metni boş.');
+  const channelId = await getMyYouTubeChannelId(cfg);
+  const firstData = await postTopLevelYouTubeComment(cfg, videoId, channelId, commentText, 'İlk (SEO) yorum');
+  for (let i = 0; i < DEFAULT_FOLLOW_UP_COMMENTS.length; i++) {
+    await sleep(500);
+    try {
+      await postTopLevelYouTubeComment(
+        cfg,
+        videoId,
+        channelId,
+        withDefaultFollowCommentHashtags(DEFAULT_FOLLOW_UP_COMMENTS[i]),
+        'Varsayılan ek yorum ' + (i + 1) + '/' + DEFAULT_FOLLOW_UP_COMMENTS.length
+      );
+    } catch (e) {
+      log('Ek yorum ' + (i + 1) + '/' + DEFAULT_FOLLOW_UP_COMMENTS.length + ' eklenemedi: ' + e.message, 'warn');
+    }
+  }
+  return firstData;
+}
+
+async function likeUploadedVideo(cfg, videoId) {
+  log('Video beğeniliyor... ID: ' + videoId, 'info');
+  const url = `https://www.googleapis.com/youtube/v3/videos/rate?id=${encodeURIComponent(videoId)}&rating=like`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + cfg.youtubeToken }
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    const data = safeJson(text);
+    let message = data.error?.message || text || `HTTP ${res.status}`;
+    if (res.status === 403 && /scope|permission|forbidden|insufficient/i.test(message)) {
+      message += ' | Çözüm: YouTube OAuth tokenını youtube.force-ssl veya youtube scope ile yeniden üret.';
+    }
+    throw new Error('Beğeni hatası: ' + message);
+  }
+  log('Video beğenildi ✓', 'success');
+  return true;
+}
+
+async function runPostPublishEngagement(cfg, videoId, seo, shouldRun) {
+  if (!shouldRun) {
+    log('Yayın sonrası yorum/beğeni atlandı: video henüz public doğrulanmadı.', 'warn');
+    return { comment: 'skipped', like: 'skipped' };
+  }
+  const result = { comment: 'disabled', like: 'disabled' };
+  if (cfg.enableFirstComment) {
+    setStep('comment', 'active');
+    try {
+      const data = await insertHookFirstComment(cfg, videoId, seo);
+      result.comment = data.id || 'ok';
+      setStep('comment', 'done');
+    } catch (e) {
+      result.comment = 'error: ' + e.message;
+      setStep('comment', 'error');
+      log(e.message, 'error');
+    }
+  } else {
+    log('İlk yorum özelliği kapalı.', 'info');
+    setStep('comment', 'done');
+  }
+  if (cfg.enableAutoLike) {
+    setStep('like', 'active');
+    try {
+      await likeUploadedVideo(cfg, videoId);
+      result.like = 'ok';
+      setStep('like', 'done');
+    } catch (e) {
+      result.like = 'error: ' + e.message;
+      setStep('like', 'error');
+      log(e.message, 'error');
+    }
+  } else {
+    log('Otomatik beğeni özelliği kapalı.', 'info');
+    setStep('like', 'done');
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADVANCED DASHBOARD / PLUGIN / QUEUE / GAMIFICATION
+// ═══════════════════════════════════════════════════════════════
+async function loadAdvancedDashboard() {
+  await Promise.allSettled([loadPlugins(false), loadQueue(false), loadAnalytics(), loadGamification()]);
+}
+
+async function loadPlugins(renderList = true) {
+  try {
+    const res = await fetch('/api/plugins');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Plugin bilgisi alınamadı');
+    const active = (data.plugins || []).filter(p => p.enabled).length;
+    const dash = document.getElementById('dashPlugins');
+    if (dash) dash.textContent = `${active}/${(data.plugins || []).length}`;
+    if (renderList) renderPlugins(data.plugins || []);
+    return data.plugins || [];
+  } catch (e) {
+    log('Plugin paneli yüklenemedi: ' + e.message, 'warn');
+    return [];
+  }
+}
+
+function renderPlugins(plugins) {
+  const out = document.getElementById('pluginList');
+  if (!out) return;
+  out.innerHTML = plugins.map(p => `
+    <div class="plugin-card ${p.enabled ? '' : 'disabled'}">
+      <div class="plugin-row">
+        <div><b>${p.name}</b><div class="plugin-meta">v${p.version || '1.0.0'} · ${p.hookCount || 0} hook</div></div>
+        <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="togglePlugin('${p.name}', ${!p.enabled})">${p.enabled ? 'Kapat' : 'Aç'}</button>
+      </div>
+      <div class="plugin-meta">${p.description || 'Açıklama yok'}</div>
+    </div>`).join('') || '<div class="plugin-card">Plugin bulunamadı.</div>';
+}
+
+async function togglePlugin(name, enabled) {
+  try {
+    const res = await fetch('/api/plugins/' + encodeURIComponent(name) + '/toggle', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Plugin güncellenemedi');
+    log(`${name} plugin ${enabled ? 'aktif' : 'pasif'} yapıldı.`, 'success');
+    await loadPlugins(true);
+  } catch (e) { log('Plugin toggle hatası: ' + e.message, 'error'); }
+}
+
+async function loadQueue(renderList = true) {
+  try {
+    const res = await fetch('/api/queue');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Kuyruk alınamadı');
+    const pending = document.getElementById('dashQueuePending');
+    if (pending) pending.textContent = data.stats?.pending ?? '0';
+    if (renderList) renderQueue(data.items || []);
+    return data;
+  } catch (e) {
+    log('Kuyruk paneli yüklenemedi: ' + e.message, 'warn');
+    return null;
+  }
+}
+
+function renderQueue(items) {
+  const out = document.getElementById('queueItems');
+  if (!out) return;
+  out.innerHTML = items.slice(0, 12).map(item => `
+    <div class="queue-item">
+      <div><div class="queue-title">${item.title || item.videoName || item.videoPath || 'Adsız video'}</div><div class="queue-meta">Öncelik ${item.priority} · ${item.scheduledTime || 'hemen'}</div></div>
+      <span class="status-badge ${item.status}">${item.status}</span>
+    </div>`).join('') || '<div class="queue-item"><div class="queue-title">Kuyruk boş.</div></div>';
+}
+
+async function addNextVideoToServerQueue() {
+  const cfg = getConfig();
+  const { target, idx } = resolveTargetVideo(STATE.videos, STATE.nextVideoIndex, cfg, false);
+  if (!target) { log('Kuyruğa eklenecek video bulunamadı. Önce Drive listesini yenile.', 'warn'); return; }
+  const seo = await generateSeoPackageAdvanced(target, '', cfg, idx, new Date().toISOString().slice(0,10));
+  try {
+    const res = await fetch('/api/queue', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ driveFileId: target.id, videoName: target.name, title: seo.title, description: seo.description, tags: seo.tags, category: seo.category?.id || '22', metadata: { drive: target, seo } })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Kuyruğa eklenemedi');
+    log('Sıradaki video server kuyruğuna eklendi: ' + target.name, 'success');
+    await loadQueue(true);
+    await loadGamification();
+  } catch (e) { log('Kuyruğa ekleme hatası: ' + e.message, 'error'); }
+}
+
+async function loadAnalytics() {
+  try {
+    const res = await fetch('/api/analytics/summary?days=30');
+    const data = await res.json();
+    const el = document.getElementById('dashSeoGenerated');
+    if (el) el.textContent = data.summary?.seoGenerated ?? '0';
+  } catch {}
+}
+
+async function loadGamification() {
+  try {
+    const res = await fetch('/api/gamification/stats');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Gamification alınamadı');
+    const stats = data.stats;
+    const levelEl = document.getElementById('dashLevel');
+    if (levelEl) levelEl.textContent = stats.profile?.level ?? '1';
+    const out = document.getElementById('missionList');
+    if (out) {
+      out.innerHTML = (stats.missions || []).slice(0, 4).map(m => {
+        const pct = Math.min(100, Math.round(((m.progress || 0) / m.target) * 100));
+        return `<div class="mission-item"><b>${m.completed ? '🏆' : '🎯'} ${m.title}</b><div class="queue-meta">${m.progress || 0}/${m.target} · +${m.rewardXp} XP</div><div class="mission-progress"><div style="width:${pct}%"></div></div></div>`;
+      }).join('');
+    }
+  } catch (e) { log('Gamification yüklenemedi: ' + e.message, 'warn'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN RUN PIPELINE
+// ═══════════════════════════════════════════════════════════════
+async function runPipeline() {
+  if (STATE.isRunning) return;
+  STATE.isRunning = true;
+  STATE.abortController = new AbortController();
+  const signal = STATE.abortController.signal;
+
+  hideResult();
+  resetSteps();
+  hideProgress();
+
+  const runBtn = document.getElementById('runNowBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  runBtn.disabled = true;
+  stopBtn.disabled = false;
+  setGlobalStatus('Yükleme yapılıyor...', 'uploading');
+
+  await ensureAutoTokens();
+  const cfg = getConfig();
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  let uploadedVideoId = null;
+  let uploadedTitle = '';
+  let publicWarning = null;
+
+  try {
+    // ── ADIM 1: Drive listesi ──
+    setStep('drive', 'active');
+    log('=== YENİ ÇALIŞMA BAŞLADI ===', 'info');
+    log('Drive dosya listesi alınıyor...', 'info');
+    const videos = await driveListVideos(cfg);
+    STATE.videos = videos;
+    STATE.totalVideos = videos.length;
+    renderVideoList();
+    updateStats();
+    setStep('drive', 'done');
+    log(`${videos.length} video bulundu.`, 'success');
+
+    // ── ADIM 2: Video seç ──
+    setStep('select', 'active');
+    const selection = resolveTargetVideo(videos, STATE.nextVideoIndex, cfg, true);
+    let idx = selection.idx;
+    let target = selection.target;
+    if (!target) throw new Error('Yüklenecek video bulunamadı! Liste sonuna gelindiyse "Liste bitince başa dön" ayarını aç veya sıradaki indeksi değiştir.');
+    STATE.nextVideoIndex = idx;
+    saveState();
+    log(`Seçilen video: ${target.name} (#${idx})`, 'info');
+    setStep('select', 'done');
+
+    // ── ADIM 3: Doğrula ──
+    setStep('validate', 'active');
+    const validation = validateShorts(target, cfg);
+    validation.warnings.forEach(w => log('⚠️ ' + w, 'warn'));
+    if (!validation.ok) {
+      validation.errors.forEach(e => log('✗ Shorts kriteri başarısız: ' + e, 'error'));
+      throw new Error('Shorts uygunluk kontrolü başarısız: ' + validation.errors.join(', '));
+    }
+    log('Shorts doğrulaması geçildi ✓', 'success');
+    setStep('validate', 'done');
+
+    // ── ADIM 4: İndir ──
+    setStep('download', 'active');
+    const blob = await driveDownloadVideo(cfg, target.id, signal);
+    setStep('download', 'done');
+
+    // ── ADIM 5: Ses metni çıkar (sadece transkripsiyon açıksa) ──
+    let transcript = '';
+    if (cfg.enableTranscription) {
+      setStep('transcribe', 'active');
+      try {
+        transcript = await extractTranscriptFromVideo(blob, cfg, { video: target, videoIndex: idx });
+        setStep('transcribe', 'done');
+      } catch (trErr) {
+        setStep('transcribe', 'error');
+        log('Ses metni çıkarma başarısız; fallback SEO ile devam: ' + trErr.message, 'warn');
+        transcript = '';
+      }
+    } else {
+      setStep('transcribe', 'skip');
+      log('Transkripsiyon kapalı; ses metni adımı atlandı (endpoint çağrılmadı).', 'info');
+    }
+
+    // ── ADIM 6: SEO üret ──
+    setStep('seo', 'active');
+    const seo = cfg.enableSeo
+      ? await generateSeoPackageAdvanced(target, transcript, cfg, idx, dateStr)
+      : generateSeoPackage(target, '', {...cfg, influencerHashtagPool: '#shorts #youtube #viral'}, idx, dateStr);
+    renderSeoPreview(seo);
+    log('SEO hazırlandı. Hook: ' + seo.hook, 'success');
+    log('En güçlü 3 hashtag: ' + seo.topHashtags.join(' '), 'success');
+    setStep('seo', 'done');
+
+    // ── ADIM 7: YouTube'a yükle ──
+    setStep('upload', 'active');
+    setProgress(0, 'Yükleme başlatılıyor...');
+    const meta = { videoIndex: idx, dateStr, targetVideo: target, transcript, seo };
+    const { videoId, title } = await youtubeResumableUpload(
+      cfg, blob, meta,
+      (pct, label) => setProgress(pct, 'Yükleniyor: ' + label),
+      signal
+    );
+    uploadedVideoId = videoId;
+    uploadedTitle = title;
+    log(`Video yüklendi! ID: ${videoId}`, 'success');
+    setStep('upload', 'done');
+    setProgress(100, 'Yükleme tamamlandı!');
+
+    // ── ADIM 6: Public yap ──
+    if (cfg.useUnlisted) {
+      setStep('public', 'active');
+      const delaySec = cfg.unlistedDelay;
+      log(`${delaySec} saniye bekleniyor (YouTube işlemesi için)...`, 'warn');
+      for (let i = delaySec; i > 0; i -= 10) {
+        if (signal.aborted) break;
+        await sleep(Math.min(10000, i * 1000));
+        log(`Public yapılacak... ${Math.max(0, i-10)}s kaldı`, 'info');
+      }
+      if (!signal.aborted) {
+        try {
+          await makeVideoPublic(cfg, videoId);
+          setStep('public', 'done');
+        } catch (publicErr) {
+          publicWarning = publicErr.message;
+          STATE.pendingPublic = { videoId, index: idx, title, error: publicWarning, at: new Date().toISOString() };
+          saveState();
+          setStep('public', 'error');
+          log('UYARI: Video yüklendi fakat public yapılamadı. Aynı videoyu tekrar yüklememek için sıra yine ilerletilecek.', 'warn');
+          log(publicWarning, 'error');
+        }
+      }
+    } else {
+      setStep('public', 'done');
+      log('Unlisted→Public adımı kapalı: video ilk yüklemede public gönderildi.', 'info');
+    }
+
+    // ── ADIM 8: Yayın sonrası engagement ──
+    const videoIsPublished = !cfg.useUnlisted || !publicWarning;
+    const engagement = await runPostPublishEngagement(cfg, videoId, seo, videoIsPublished);
+    if (engagement.comment && String(engagement.comment).startsWith('error')) {
+      log('İlk yorum atılamadı ama video yükleme akışı devam ediyor.', 'warn');
+    }
+    if (engagement.like && String(engagement.like).startsWith('error')) {
+      log('Video beğenilemedi ama video yükleme akışı devam ediyor.', 'warn');
+    }
+
+    // ── BAŞARILI ──
+    const shortsUrl = `https://www.youtube.com/shorts/${videoId}`;
+    STATE.nextVideoIndex = idx + 1;
+    STATE.publishedCount += 1;
+    STATE.lastPublished = new Date().toISOString();
+    STATE.lastPublishedUrl = shortsUrl;
+    saveState();
+    updateStats();
+    renderVideoList();
+
+    log(`✅ TAMAMLANDI: ${shortsUrl}`, 'success');
+    if (publicWarning) {
+      log('⚠️ Video linki oluştu ama public yapılması manuel kontrol gerektiriyor.', 'warn');
+    }
+    log('⏳ YouTube Shorts olarak işlemesi 30dk–2 saat alabilir.', 'warn');
+
+    showResult(true, publicWarning ? `#${idx} ${title} yüklendi, public kontrol gerekli` : `#${idx} ${title} yayınlandı!`, shortsUrl);
+    setGlobalStatus(publicWarning ? 'Yüklendi, public kontrol gerekli' : 'Son yükleme başarılı', publicWarning ? 'idle' : 'connected');
+
+  } catch(e) {
+    if (e.name === 'AbortError' || e.message.includes('iptal')) {
+      log('Yükleme iptal edildi.', 'warn');
+      ['drive','select','download','validate','transcribe','seo','upload','public','comment','like'].forEach(id => {
+        const el = document.getElementById('step-' + id);
+        if (el.classList.contains('active')) setStep(id, '');
+      });
+    } else {
+      log('HATA: ' + e.message, 'error');
+      ['drive','select','download','validate','transcribe','seo','upload','public','comment','like'].forEach(id => {
+        const el = document.getElementById('step-' + id);
+        if (el.classList.contains('active')) setStep(id, 'error');
+      });
+      showResult(false, 'Yükleme başarısız', e.message);
+    }
+    setGlobalStatus('Hata oluştu', 'idle');
+  }
+
+  STATE.isRunning = false;
+  runBtn.disabled = false;
+  stopBtn.disabled = true;
+  hideProgress();
+}
+
+function runNow() { runPipeline(); }
+
+function stopRun() {
+  if (STATE.abortController) {
+    STATE.abortController.abort();
+    log('Durdurma isteği gönderildi...', 'warn');
+  }
+}
+
+function copyOAuthScopeLine() {
+  const el = document.getElementById('oauthScopeLine');
+  if (!el) return;
+  const value = el.value.trim();
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(value)
+      .then(() => log('OAuth Playground Step 1 scope satırı kopyalandı.', 'success'))
+      .catch(() => fallbackCopyText(value));
+  } else {
+    fallbackCopyText(value);
+  }
+}
+
+function fallbackCopyText(value) {
+  const ta = document.createElement('textarea');
+  ta.value = value;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    log('OAuth Playground Step 1 scope satırı kopyalandı.', 'success');
+  } catch (e) {
+    log('Kopyalama başarısız. Scope satırını elle seçip kopyala.', 'warn');
+  } finally {
+    document.body.removeChild(ta);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VIDEO LIST RENDER
+// ═══════════════════════════════════════════════════════════════
+function renderVideoList() {
+  const el = document.getElementById('videoList');
+  if (!STATE.videos.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:30px 0;">Video bulunamadı</div>';
+    return;
+  }
+  const effective = resolveTargetVideo(STATE.videos, STATE.nextVideoIndex, getConfig(), false).idx;
+  el.innerHTML = STATE.videos.map(v => {
+    const isDone = v.number < STATE.nextVideoIndex;
+    const isCurrent = v.number === effective;
+    const cls = isDone ? 'done' : isCurrent ? 'current' : '';
+    const statusCls = isDone ? 'status-done' : isCurrent ? 'status-next' : 'status-wait';
+    const statusTxt = isDone ? '✓ Yayında' : isCurrent ? '▶ Sırada' : '⏳ Bekliyor';
+    const dur = v.durationMillis > 0 ? `${(v.durationMillis/1000).toFixed(0)}s` : '?s';
+    const dim = v.width > 0 ? `${v.width}x${v.height}` : '? boyut';
+    return `<div class="video-item ${cls}">
+      <div class="video-num">${isDone ? '✓' : v.number}</div>
+      <div class="video-info">
+        <div class="video-name">${v.name}</div>
+        <div class="video-meta">${dim} · ${dur} · ${(v.size/1024/1024).toFixed(1)}MB</div>
+      </div>
+      <div class="video-status ${statusCls}">${statusTxt}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = STATE.totalVideos || '—';
+  document.getElementById('statDone').textContent = STATE.publishedCount;
+  document.getElementById('statNext').textContent = STATE.nextVideoIndex;
+  const info = document.getElementById('currentVideoInfo');
+  if (info) {
+    const { target, idx } = resolveTargetVideo(STATE.videos, STATE.nextVideoIndex, getConfig(), false);
+    info.textContent = target ? `#${idx} — ${target.name}` : 'Video listesi boş veya sıradaki indeks bulunamadı';
+  }
+  syncManualIndexInputs();
+}
+
+async function refreshVideoList() {
+  await ensureAutoTokens();
+  const cfg = getConfig();
+  if (!cfg.googleToken || !cfg.folderId) {
+    log('Önce Google Access Token ve Klasör ID girin!', 'error');
+    return;
+  }
+  try {
+    const videos = await driveListVideos(cfg);
+    STATE.videos = videos;
+    STATE.totalVideos = videos.length;
+    renderVideoList();
+    updateStats();
+    log(`Video listesi güncellendi: ${videos.length} dosya`, 'success');
+  } catch(e) {
+    log('Liste alınamadı: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCHEDULE
+// ═══════════════════════════════════════════════════════════════
+function toggleSchedule() {
+  if (STATE.isScheduleActive) {
+    stopSchedule();
+  } else {
+    startSchedule();
+  }
+}
+
+function startSchedule() {
+  const morningTime = document.getElementById('morningHour').value;
+  const eveningTime = document.getElementById('eveningHour').value;
+
+  STATE.isScheduleActive = true;
+  document.getElementById('scheduleToggleBtn').textContent = '⏹ Zamanlayıcıyı Durdur';
+  document.getElementById('scheduleToggleBtn').classList.remove('btn-primary');
+  document.getElementById('scheduleToggleBtn').classList.add('btn-secondary');
+  document.getElementById('scheduleStatusChip').textContent = '▶ Aktif';
+  document.getElementById('scheduleStatusChip').style.color = 'var(--green)';
+
+  log(`Zamanlayıcı başlatıldı: Sabah ${morningTime}, Akşam ${eveningTime}`, 'success');
+
+  // Her dakika kontrol. Aynı dakikada tekrar tetiklenmeyi engeller.
+  STATE.scheduleIntervalId = setInterval(() => {
+    const now = new Date();
+    const hm = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+    const dateKey = now.toISOString().split('T')[0] + '-' + hm;
+    if (hm === morningTime || hm === eveningTime) {
+      if (STATE.lastScheduledRunKey === dateKey) return;
+      STATE.lastScheduledRunKey = dateKey;
+      saveState();
+      if (!STATE.isRunning) {
+        log(`Zamanlanmış çalışma tetiklendi: ${hm}`, 'info');
+        runPipeline();
+      } else {
+        log(`Zaman geldi fakat önceki yükleme devam ediyor: ${hm}`, 'warn');
+      }
+    }
+  }, 60000);
+
+  updateCountdown(morningTime, eveningTime);
+  STATE.countdownIntervalId = setInterval(() => updateCountdown(morningTime, eveningTime), 1000);
+}
+
+function stopSchedule() {
+  STATE.isScheduleActive = false;
+  clearInterval(STATE.scheduleIntervalId);
+  clearInterval(STATE.countdownIntervalId);
+  document.getElementById('scheduleToggleBtn').textContent = '▶ Zamanlayıcıyı Başlat';
+  document.getElementById('scheduleToggleBtn').classList.add('btn-primary');
+  document.getElementById('scheduleToggleBtn').classList.remove('btn-secondary');
+  document.getElementById('scheduleStatusChip').textContent = '⏸ Durduruldu';
+  document.getElementById('scheduleStatusChip').style.color = '';
+  document.getElementById('countdownTimer').textContent = '--:--:--';
+  document.getElementById('nextRunDesc').textContent = 'Zamanlayıcı durduruldu';
+  log('Zamanlayıcı durduruldu.', 'warn');
+}
+
+function updateCountdown(morningTime, eveningTime) {
+  const now = new Date();
+  const times = [morningTime, eveningTime].map(t => {
+    const [h,m] = t.split(':').map(Number);
+    const d = new Date(now);
+    d.setHours(h, m, 0, 0);
+    if (d <= now) d.setDate(d.getDate() + 1);
+    return d;
+  });
+  times.sort((a,b) => a - b);
+  const next = times[0];
+  const diff = next - now;
+  const h = Math.floor(diff / 3600000).toString().padStart(2,'0');
+  const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2,'0');
+  const s = Math.floor((diff % 60000) / 1000).toString().padStart(2,'0');
+  document.getElementById('countdownTimer').textContent = `${h}:${m}:${s}`;
+
+  const isNextMorning = times[0].getHours() === parseInt(morningTime.split(':')[0]);
+  document.getElementById('nextRunDesc').textContent =
+    `Sonraki: ${isNextMorning ? '☀️ Sabah' : '🌙 Akşam'} ${times[0].toLocaleTimeString('tr-TR')}`;
+
+  ['morning','evening'].forEach(slot => {
+    const t = slot === 'morning' ? morningTime : eveningTime;
+    document.getElementById(slot + 'Time').textContent = t;
+    const slotEl = document.getElementById(slot + 'Slot');
+    slotEl.className = 'time-item ' + (times[0].getHours() === parseInt(t.split(':')[0]) ? 'active' : '');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+(function init() {
+  const start = document.getElementById('startIndex');
+  if (start) {
+    start.value = STATE.nextVideoIndex;
+    start.addEventListener('change', () => {
+      const v = parseInt(start.value || '1');
+      if (v > 0) {
+        STATE.nextVideoIndex = v;
+        saveState();
+        updateStats();
+        renderVideoList();
+        log('Başlangıç/sıradaki indeks güncellendi: #' + v, 'success');
+      }
+    });
+  }
+  syncManualIndexInputs();
+  syncTranscriptionPanel();
+  updateStats();
+  renderVideoList();
+  log('Sistem hazır. API tokenlarınızı girin ve bağlantıları test edin.', 'info');
+  log('Shorts yükleme: Resumable Upload API + yayın öncesi SEO + optional transcript pipeline kullanılıyor.', 'info');
+  log('Yayın sonrası: hook ilk yorum + otomatik beğeni için youtube.force-ssl veya youtube scope gerekir.', 'warn');
+  log('OAuth Playground Step 1 tek satır scope: https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl', 'info');
+  loadAdvancedDashboard();
+  log('NOT: Shorts olarak görünmesi 30dk–2 saat sürebilir. İlk 3 hashtag açıklamada görünürlük için öne alınır.', 'warn');
+  log('Sürekli çalışma için bu HTML sekmesi ve bilgisayar açık kalmalı. Vercel cron/n8n kullanılırsa tarayıcı açık kalmadan çalışır.', 'warn');
+})();
+
+window.addEventListener('beforeunload', (e) => {
+  if (STATE.isRunning) {
+    e.preventDefault();
+    e.returnValue = 'Yükleme devam ediyor. Sayfadan çıkarsan işlem yarıda kalabilir.';
+  }
+});
+
+</script>
+</body>
+</html>
