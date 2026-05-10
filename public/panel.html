@@ -1687,7 +1687,7 @@ async function saveLocalOAuthConfig() {
     return;
   }
   try {
-    const res = await fetch(base + '/api/local-oauth/save', {
+    const res = await fetch(base + '/local-oauth/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1725,7 +1725,7 @@ async function ensureAutoTokens(force = false) {
   const base = localTokenBaseUrl();
   localStorage.setItem('tokenBackendUrl', base);
   try {
-    const res = await fetch(base + '/api/local-oauth/token', {
+    const res = await fetch(base + '/local-oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ force })
